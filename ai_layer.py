@@ -52,10 +52,11 @@ from collections import defaultdict
 from sklearn.ensemble          import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model      import LogisticRegression
 from sklearn.preprocessing     import StandardScaler
-from sklearn.model_selection   import TimeSeriesSplit, cross_val_score
+from sklearn.model_selection   import (TimeSeriesSplit, cross_val_score,
+                                        RandomizedSearchCV)
 from sklearn.metrics           import classification_report, roc_auc_score
 from sklearn.pipeline          import Pipeline
-from sklearn.calibration        import CalibratedClassifierCV
+from sklearn.calibration       import CalibratedClassifierCV
 
 
 # ═══════════════════════════════════════════════════════
@@ -66,22 +67,20 @@ MODEL_PATH        = "models/rf_model.pkl"
 SCORE_HISTORY_PATH= "models/score_history.json"
 FEATURE_NAMES_PATH= "models/feature_names.json"
 
+# ── Backtest trade adatok mentési helye ───────────────
+# A backtest minden lezárt trade feature vektorát ide menti.
+# Az ai_layer.py --train ezeket olvassa be valós tanítóadatnak.
+TRADE_DATA_PATH   = "models/real_trade_data.json"
+
 # A trade "nyertes" ha legalább ennyit hozott (%)
 WIN_THRESHOLD_PCT = 5.0
 
 # Előretekintési ablak: ennyi napon belül kell teljesíteni a hozamot
 FORWARD_DAYS = 63   # ~3 hónap
 
-# Random Forest hiperparaméterek
-RF_PARAMS = {
-    "n_estimators":  300,
-    "max_depth":     6,
-    "min_samples_leaf": 8,    # véd az overfitting ellen kis adathalmazon
-    "max_features":  "sqrt",
-    "random_state":  42,
-    "class_weight":  "balanced",
-    "n_jobs":        -1,
-}
+# Hyperparameter keresési iterációk száma.
+# 40 kb. 2-5 perc. Ha gyorsabb kell: 20. Ha pontosabb: 60.
+HYPERPARAM_ITER   = 40
 
 
 # ═══════════════════════════════════════════════════════
@@ -403,97 +402,337 @@ def build_training_data_from_backtest(backtest_results: list[dict],
 #  MODEL BETANÍTÁS
 # ═══════════════════════════════════════════════════════
 
-def train_model(backtest_results: list[dict] = None) -> tuple:
+# ═══════════════════════════════════════════════════════
+#  VALÓS TRADE ADATOK MENTÉSE/BETÖLTÉSE
+#  A backtest ezt hívja minden lezárt trade-nél.
+# ═══════════════════════════════════════════════════════
+
+def save_trade_data(trade_contexts: list[dict], labels: list[int]):
+    """
+    A backtest által generált valós trade adatokat elmenti JSON-ba.
+
+    MIÉRT KELL EZ?
+    ──────────────
+    A backtest lefut és közben kiszámolja minden trade-hez a 24
+    feature értéket és hogy nyertes volt-e. Ezeket el kell menteni,
+    mert a --train parancs csak később fut — amikor már a backtest
+    rég befejeződött. A JSON fájl az a "memória" ami áthidalja a
+    két futtatás közötti időt.
+
+    Fontos: az új futtatások adatai hozzáadódnak a régiekhez (append),
+    nem felülírják azokat — így minden backtest gazdagítja a modellt.
+    """
+    os.makedirs("models", exist_ok=True)
+
+    # Meglévő adatok betöltése (ha van)
+    existing = {"contexts": [], "labels": []}
+    if os.path.exists(TRADE_DATA_PATH):
+        try:
+            with open(TRADE_DATA_PATH) as f:
+                existing = json.load(f)
+        except Exception:
+            pass
+
+    # Hozzáfűzés
+    existing["contexts"].extend(trade_contexts)
+    existing["labels"].extend(labels)
+
+    with open(TRADE_DATA_PATH, "w") as f:
+        json.dump(existing, f)
+
+    print(f"  💾 Trade adatok mentve: {len(existing['labels'])} db összesen "
+          f"({TRADE_DATA_PATH})")
+
+
+def load_trade_data() -> tuple[list[dict], list[int]]:
+    """Betölti a korábban mentett valós trade adatokat."""
+    if not os.path.exists(TRADE_DATA_PATH):
+        return [], []
+    try:
+        with open(TRADE_DATA_PATH) as f:
+            data = json.load(f)
+        return data.get("contexts", []), data.get("labels", [])
+    except Exception:
+        return [], []
+
+
+def clear_trade_data():
+    """Törli a mentett trade adatokat (újrakezdéshez)."""
+    if os.path.exists(TRADE_DATA_PATH):
+        os.remove(TRADE_DATA_PATH)
+        print(f"  🗑️  Trade adatok törölve: {TRADE_DATA_PATH}")
+
+
+# ═══════════════════════════════════════════════════════
+#  HYPERPARAMETER OPTIMALIZÁLÁS
+# ═══════════════════════════════════════════════════════
+
+def find_best_hyperparams(X: np.ndarray, y: np.ndarray,
+                           n_iter: int = HYPERPARAM_ITER) -> dict:
+    """
+    RandomizedSearchCV-vel megkeresi a legjobb Random Forest beállítást.
+
+    HOGYAN MŰKÖDIK?
+    ───────────────
+    A Random Forest-nek több "gombot" lehet tekerni:
+      - n_estimators:     hány fát épít (több = pontosabb, de lassabb)
+      - max_depth:        milyen mély lehet egy fa (mély = több részlet,
+                          de könnyebben overfittel)
+      - min_samples_leaf: minimum ennyi adat kell egy levélhez
+                          (nagyobb = simább, kevésbé overfittel)
+      - max_features:     minden elágazásnál hány feature-t próbál ki
+                          (kevesebb = diverzebb fák = jobb ensemble)
+      - class_weight:     hogyan súlyozza a win/loss aránytalanságot
+
+    A RandomizedSearchCV véletlenszerűen kombinációkat próbál ki
+    (n_iter darabot), és TimeSeriesSplit cross-validationnel méri
+    melyik a legjobb ROC-AUC értéket adja.
+
+    MIÉRT RANDOMIZED és nem GRID?
+    ───────────────────────────────
+    A GridSearchCV az összes kombinációt kipróbálná — ha 5 paramétert
+    5-5 értékkel vizsgálunk, az 5^5 = 3125 futtatás. A Randomized
+    n_iter random kombinációt próbál (pl. 40), és a kutatások szerint
+    hasonló eredményt ad töredék idő alatt.
+
+    Visszatér: a legjobb paraméterek dict-je
+    """
+    print(f"\n  🔍 Hyperparameter keresés ({n_iter} iteráció, TimeSeriesSplit)...")
+
+    # A keresési tér: ezek közül próbál kombinációkat
+    param_dist = {
+        "n_estimators":       [100, 200, 300, 500, 800],
+        "max_depth":          [3, 4, 5, 6, 7, 8, None],
+        "min_samples_leaf":   [4, 6, 8, 12, 16, 20],
+        "min_samples_split":  [2, 5, 10, 15],
+        "max_features":       ["sqrt", "log2", 0.3, 0.5, 0.7],
+        "class_weight":       ["balanced", "balanced_subsample", None],
+    }
+
+    base_rf = RandomForestClassifier(random_state=42, n_jobs=-1)
+    tscv    = TimeSeriesSplit(n_splits=5)
+
+    search = RandomizedSearchCV(
+        estimator  = base_rf,
+        param_distributions = param_dist,
+        n_iter     = n_iter,
+        cv         = tscv,
+        scoring    = "roc_auc",
+        n_jobs     = -1,
+        random_state = 42,
+        verbose    = 0,
+    )
+    search.fit(X, y)
+
+    best = search.best_params_
+    best["random_state"] = 42
+    best["n_jobs"]       = -1
+
+    print(f"  ✅ Legjobb ROC-AUC: {search.best_score_:.4f}")
+    print(f"  📋 Legjobb paraméterek:")
+    for k, v in sorted(best.items()):
+        if k not in ("random_state", "n_jobs"):
+            print(f"     {k:25s} = {v}")
+
+    return best
+
+
+# ═══════════════════════════════════════════════════════
+#  MODEL BETANÍTÁS — ÚJRAÍRT VERZIÓ
+# ═══════════════════════════════════════════════════════
+
+def train_model(backtest_results: list[dict] = None,
+                run_hyperparam_search: bool = True) -> tuple:
     """
     Betanítja a modellt és elmenti a fájlrendszerbe.
 
-    Pipeline:
-    1. Backtest trade-ekből valós adatok (ha vannak)
-    2. Szintetikus adatokkal kiegészítés (mindig van elég adat)
-    3. Random Forest + Platt scaling (valószínűség kalibráláshoz)
-    4. TimeSeriesSplit cross-validation (nem szivárog jövőbeli adat)
-    5. Mentés pkl fájlba
+    ADATOK PRIORITÁSA (fontosság sorrendben):
+    ──────────────────────────────────────────
+    1. Korábban mentett valós trade adatok (TRADE_DATA_PATH JSON)
+       → minden korábbi backtest futásból összegyűjtve
+    2. Aktuálisan átadott backtest_results (ha van)
+    3. Szintetikus adatok kiegészítésképpen
+
+    SZINTETIKUS ADATOK SZEREPE:
+    ────────────────────────────
+    Ha sok valós adatod van (200+ trade), a szintetikus adatokra
+    szinte nincs szükség. Ha kevés van (< 50 trade), a szintetikus
+    adatok biztosítják hogy a modell ne overfittelje a kis mintát.
+
+    A keveredési arány automatikus:
+      - 0 valós trade:    2000 szintetikus, 0 valós
+      - 50 valós trade:   1500 szintetikus, 50×5=250 valós (súlyozva)
+      - 200 valós trade:  500 szintetikus,  200×5=1000 valós (súlyozva)
+      - 400+ valós trade: 200 szintetikus,  400×5=2000 valós (súlyozva)
+
+    HYPERPARAMETER OPTIMALIZÁLÁS:
+    ──────────────────────────────
+    Ha run_hyperparam_search=True (alapértelmezett), a RandomizedSearchCV
+    automatikusan megtalálja a legjobb RF beállítást a te adatodra.
+    Ez ~2-5 percet vesz igénybe, de csak egyszer kell futtatni.
+    Az eredmény a modellbe van sütve — az élő bot nem fut keresést.
     """
-    print("\n" + "═"*55)
-    print("  AI LAYER — Model Tanítás")
-    print("═"*55)
+    print("\n" + "═"*60)
+    print("  AI LAYER v2 — Model Tanítás")
+    print(f"  {datetime.now().strftime('%Y.%m.%d %H:%M:%S')}")
+    print("═"*60)
 
     score_table = ScoreHistoryTable()
 
-    # ── 1. Valós backtest adatok ──────────────────────────
-    X_real, y_real = np.array([]).reshape(0, len(FEATURE_NAMES)), np.array([])
+    # ── 1. Korábban mentett valós trade adatok betöltése ──
+    saved_contexts, saved_labels = load_trade_data()
+    print(f"\n  📂 Korábban mentett trade-ek: {len(saved_labels)} db")
+
+    # ── 2. Aktuális backtest_results feldolgozása ─────────
+    new_contexts, new_labels = [], []
     if backtest_results:
-        X_real, y_real = build_training_data_from_backtest(
+        X_bt, y_bt = build_training_data_from_backtest(
             backtest_results, score_table
         )
-        print(f"  Valós trade-ek:     {len(y_real)} db")
-        if len(y_real) > 0:
-            print(f"  Valós win rate:     {y_real.mean()*100:.1f}%")
+        if len(y_bt) > 0:
+            # A feature vektorokat context dict-ként tároljuk vissza
+            # hogy a save_trade_data JSON-ba tudja írni
+            for i, ctx in enumerate(
+                [t.get("context", {})
+                 for r in backtest_results
+                 for t in r.get("trades", [])
+                 if t.get("context")]
+            ):
+                if i < len(y_bt):
+                    new_contexts.append(ctx)
+                    new_labels.append(int(y_bt[i]))
+            print(f"  📈 Új trade-ek (aktuális backtest): {len(new_labels)} db")
+            if len(new_labels) > 0:
+                print(f"     Win rate: {np.mean(new_labels)*100:.1f}%")
+            # Mentés a jövőre
+            if new_contexts:
+                save_trade_data(new_contexts, new_labels)
 
-    # ── 2. Szintetikus adatok ─────────────────────────────
-    # Minél több valós adat van, annál kevesebb szintetikus kell
-    n_synth = max(500, 2000 - len(y_real) * 10)
+    # ── 3. Teljes valós adathalmaz összerakása ────────────
+    all_real_contexts = saved_contexts + new_contexts
+    all_real_labels   = saved_labels   + new_labels
+
+    # Feature vektorok kinyerése a context dict-ekből
+    X_real_list = []
+    for ctx in all_real_contexts:
+        try:
+            fv = extract_features_from_trade(ctx, score_table)
+            X_real_list.append(fv)
+        except Exception:
+            continue
+
+    if X_real_list:
+        X_real = np.array(X_real_list, dtype=float)
+        y_real = np.array(all_real_labels[:len(X_real_list)], dtype=int)
+    else:
+        X_real = np.array([]).reshape(0, len(FEATURE_NAMES))
+        y_real = np.array([], dtype=int)
+
+    n_real = len(y_real)
+    print(f"\n  📊 Összes valós trade: {n_real} db")
+    if n_real > 0:
+        print(f"     Win rate: {y_real.mean()*100:.1f}%")
+        print(f"     Legjobb input minőség: "
+              f"{'Kiváló (200+)' if n_real >= 200 else 'Jó (100+)' if n_real >= 100 else 'Közepes (50+)' if n_real >= 50 else 'Kevés — szintetikus kiegészítés szükséges'}")
+
+    # ── 4. Szintetikus adatok mennyiségének meghatározása ─
+    # Képlet: minél több valós adat van, annál kevesebb szintetikus kell.
+    # 0 valós → 2000 szintetikus
+    # 400 valós → 200 szintetikus (csak "regularizáció")
+    n_synth = max(200, int(2000 * max(0, 1 - n_real / 200)))
     X_synth, y_synth = generate_synthetic_training_data(n_samples=n_synth)
-    print(f"  Szintetikus adatok: {n_synth} db")
+    print(f"  🔧 Szintetikus kiegészítő adatok: {n_synth} db")
 
-    # ── 3. Összefűzés ─────────────────────────────────────
-    if len(y_real) > 0:
-        # A valós adatok 3x akkora súlyt kapnak mint a szintetikusak
-        X_real_rep = np.repeat(X_real, 3, axis=0)
-        y_real_rep = np.repeat(y_real, 3)
+    # ── 5. Összefűzés súlyozással ─────────────────────────
+    # A valós adatok 5× ismételve → nagyobb súlyt kapnak mint a szintetikus.
+    # Ez garantálja hogy a modell a valós mintákhoz igazodik,
+    # a szintetikus csak "alaptudásként" van jelen.
+    if n_real > 0:
+        repeat_factor = max(3, min(10, 500 // max(n_real, 1)))
+        X_real_rep    = np.repeat(X_real, repeat_factor, axis=0)
+        y_real_rep    = np.repeat(y_real, repeat_factor)
         X_all = np.vstack([X_real_rep, X_synth])
         y_all = np.concatenate([y_real_rep, y_synth])
+        print(f"  ⚖️  Valós adatok súlyszorzója: {repeat_factor}× "
+              f"({len(y_real_rep)} sor) vs szintetikus ({n_synth} sor)")
     else:
         X_all, y_all = X_synth, y_synth
+        print("  ⚠️  Csak szintetikus adaton tanul — futtass backtestet először!")
 
-    print(f"  Teljes tanítóhalmaz: {len(y_all)} db  "
+    print(f"\n  📦 Teljes tanítóhalmaz: {len(y_all)} sor "
           f"(win rate: {y_all.mean()*100:.1f}%)")
 
-    # ── 4. Pipeline felépítés ─────────────────────────────
-    # StandardScaler: normalizálja a feature-öket (fontos a Logistic Regression-nek)
-    # CalibratedClassifierCV: a Random Forest valószínűségeit kalibrálja
-    #   → a "73% bullish" valóban azt jelenti, hogy 73% az esélye
-    base_model = RandomForestClassifier(**RF_PARAMS)
+    # NaN csere nullával
+    X_all = np.where(np.isnan(X_all), 0.0, X_all)
+
+    # ── 6. Hyperparameter optimalizálás ───────────────────
+    if run_hyperparam_search and len(y_all) >= 100:
+        best_params = find_best_hyperparams(X_all, y_all)
+    else:
+        # Alapértelmezett biztonságos értékek
+        best_params = {
+            "n_estimators": 300, "max_depth": 6,
+            "min_samples_leaf": 8, "min_samples_split": 5,
+            "max_features": "sqrt", "class_weight": "balanced",
+            "random_state": 42, "n_jobs": -1,
+        }
+        if not run_hyperparam_search:
+            print("  ℹ️  Hyperparameter keresés kihagyva (--no-hyperparam flag).")
+        else:
+            print("  ℹ️  Kevés adat — alapértelmezett paraméterek.")
+
+    # ── 7. Pipeline felépítés és tanítás ──────────────────
+    # A CalibratedClassifierCV Platt-scaling módszerrel biztosítja,
+    # hogy a "73% bullish" valóban 73% historikus win rate-et jelent.
+    base_model = RandomForestClassifier(**best_params)
     pipeline   = Pipeline([
         ("scaler", StandardScaler()),
         ("model",  CalibratedClassifierCV(base_model, cv=3, method="sigmoid"))
     ])
 
-    # ── 5. TimeSeriesSplit cross-validation ───────────────
-    # FONTOS: sima k-fold nem használható idősoroknál!
-    # A TimeSeriesSplit mindig csak múltbeli adatot lát tanításkor.
+    # ── 8. Végső cross-validation értékelés ───────────────
     tscv   = TimeSeriesSplit(n_splits=5)
     scores = cross_val_score(pipeline, X_all, y_all,
                              cv=tscv, scoring="roc_auc", n_jobs=-1)
-    print(f"\n  Cross-validation ROC-AUC: {scores.mean():.3f} ± {scores.std():.3f}")
-    print(f"  (0.5 = véletlen találgatás, 1.0 = tökéletes)")
+    print(f"\n  📏 Végső cross-validation ROC-AUC: "
+          f"{scores.mean():.4f} ± {scores.std():.4f}")
+    print(f"     Értelmezés: 0.50 = véletlen | 0.65 = közepes | "
+          f"0.75+ = jó | 0.85+ = kiváló")
 
-    # ── 6. Végleges tanítás ───────────────────────────────
+    # ── 9. Végleges modell tanítása az összes adaton ──────
     pipeline.fit(X_all, y_all)
 
-    # Feature importancia (a kalibrált modellből kibontva)
+    # ── 10. Feature importancia kiírása ───────────────────
     try:
-        rf = pipeline.named_steps["model"].calibrated_classifiers_[0].estimator
+        rf          = pipeline.named_steps["model"].calibrated_classifiers_[0].estimator
         importances = rf.feature_importances_
-        top_features = sorted(zip(FEATURE_NAMES, importances),
-                               key=lambda x: x[1], reverse=True)[:8]
-        print("\n  Top 8 legfontosabb feature:")
-        for fname, imp in top_features:
-            bar = "█" * int(imp * 100)
-            print(f"    {fname:25s} {imp:.3f} {bar}")
+        top         = sorted(zip(FEATURE_NAMES, importances),
+                             key=lambda x: x[1], reverse=True)[:10]
+        print(f"\n  🏆 Top 10 legfontosabb feature (valós adatok alapján):")
+        for fname, imp in top:
+            filled = int(imp * 120)
+            empty  = 20 - min(filled, 20)
+            bar    = "█" * min(filled, 20) + "░" * empty
+            print(f"     {fname:25s}  {bar}  {imp:.4f}")
     except Exception:
         pass
 
-    # ── 7. Mentés ─────────────────────────────────────────
+    # ── 11. Mentés ────────────────────────────────────────
     os.makedirs("models", exist_ok=True)
     joblib.dump(pipeline, MODEL_PATH)
     score_table.save(SCORE_HISTORY_PATH)
     with open(FEATURE_NAMES_PATH, "w") as f:
         json.dump(FEATURE_NAMES, f)
 
-    print(f"\n  ✅ Modell elmentve: {MODEL_PATH}")
-    print(f"  ✅ Score-history:   {SCORE_HISTORY_PATH}")
-    print("═"*55 + "\n")
+    # Legjobb paraméterek mentése (hogy később is látható legyen)
+    with open("models/best_params.json", "w") as f:
+        json.dump({k: str(v) for k, v in best_params.items()}, f, indent=2)
+
+    print(f"\n  ✅ Modell elmentve:     {MODEL_PATH}")
+    print(f"  ✅ Score-history:       {SCORE_HISTORY_PATH}")
+    print(f"  ✅ Legjobb paraméterek: models/best_params.json")
+    print(f"  ✅ Valós trade adatok:  {TRADE_DATA_PATH}")
+    print("═"*60 + "\n")
 
     return pipeline, score_table
 
@@ -787,19 +1026,42 @@ class AIAnalyzer:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Layer — Model Tanítás")
     parser.add_argument("--train", action="store_true",
-                        help="Modell betanítása (backtest nélkül: szintetikus adaton)")
+                        help="Modell betanítása a valós + szintetikus adatokon")
+    parser.add_argument("--no-hyperparam", action="store_true",
+                        help="Hyperparameter keresés kihagyása (gyorsabb, de nem optimális)")
+    parser.add_argument("--clear-data", action="store_true",
+                        help="Valós trade adatok törlése (újrakezdés)")
     parser.add_argument("--test",  action="store_true",
                         help="Teszt predikció futtatása")
+    parser.add_argument("--info",  action="store_true",
+                        help="Mentett adatok statisztikája")
     args = parser.parse_args()
 
+    if args.clear_data:
+        clear_trade_data()
+
+    if args.info:
+        ctxs, labels = load_trade_data()
+        if labels:
+            wins = sum(labels)
+            print(f"\n  📊 Mentett trade adatok: {len(labels)} db")
+            print(f"     Win rate: {wins/len(labels)*100:.1f}%")
+            print(f"     Nyertes: {wins} | Vesztes: {len(labels)-wins}")
+            print(f"     Fájl: {TRADE_DATA_PATH}\n")
+        else:
+            print(f"\n  ℹ️  Nincs mentett trade adat. Futtass backtestet!\n")
+
     if args.train:
-        pipeline, score_table = train_model(backtest_results=None)
-        print("✅ Tanítás kész! Az advanced_bot_v3.py mostantól használhatja.")
+        run_search = not args.no_hyperparam
+        pipeline, score_table = train_model(
+            backtest_results=None,
+            run_hyperparam_search=run_search
+        )
+        print("✅ Tanítás kész!")
 
     if args.test:
         analyzer = AIAnalyzer()
         if analyzer.is_ready():
-            # Teszt kontextus
             test_ctx = {
                 "ticker": "NVDA", "bull_score": 12, "bear_score": 3,
                 "net_score": 9,   "rsi": 61.5,      "adx": 32.1,
@@ -813,14 +1075,14 @@ if __name__ == "__main__":
                 }
             }
             report = analyzer.predict(test_ctx)
-            print("\n=== TESZT RIPORT ===")
-            print(f"Részvény:         {report['ticker']}")
-            print(f"Irány:            {report['direction_emoji']} {report['direction_label']}")
-            print(f"Bullish valószínűség: {report['bull_pct']}%")
-            print(f"ML:               {report['ml_probability']}%")
-            print(f"Hist. win rate:   {report['hist_win_rate']}%")
-            print(f"Indoklás:         {report['explanation']}")
-            print(f"Pozícióméret:     {report['position_size_pct']}%")
-            print(f"\nKockázatok:")
-            for r in report["risks"]: print(f"  {r}")
-            print(f"\nAlternatív szcenárió:\n{report['alt_scenario']}")
+            print(f"\n  Részvény:  {report['ticker']}")
+            print(f"  Irány:     {report['direction_emoji']} {report['direction_label']}")
+            print(f"  Bullish:   {report['bull_pct']}%")
+            print(f"  ML:        {report['ml_probability']}%")
+            print(f"  Hist. WR:  {report['hist_win_rate']}%")
+            print(f"  Adat:      {report['data_quality']}")
+            print(f"  Poz. méret:{report['position_size_pct']}%")
+            print(f"\n  Indoklás: {report['explanation']}")
+            print(f"\n  Kockázatok:")
+            for r in report["risks"]: print(f"    {r}")
+            print(f"\n  Alt. szcenárió:\n{report['alt_scenario']}")

@@ -1,22 +1,22 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║         BACKTEST v2.0 — advanced_bot_v3 + AI Layer               ║
+║         BACKTEST v2.0 — advanced_bot_v3 + AI Layer              ║
 ║         3 éves historikus teszt, 10 részvény, $1000/db           ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  MIT ÚJ A v2.0-BAN?                                              ║
+║  MIT ÚJ A v2.0-BAN?                                             ║
 ║                                                                  ║
-║  1. Az advanced_bot_v3 ÖSSZES stratégiáját teszteli (S1–S9)      ║
+║  1. Az advanced_bot_v3 ÖSSZES stratégiáját teszteli (S1–S9)     ║
 ║  2. Az AI layer is fut: minden trade-nél bullish%-ot számol      ║
-║  3. AI-SZŰRT mód: csak akkor vesz, ha AI bullish% >= küszöb      ║
+║  3. AI-SZŰRT mód: csak akkor vesz, ha AI bullish% >= küszöb     ║
 ║  4. Párhuzamos összehasonlítás:                                  ║
-║       • Csak Quant stratégia (v3, AI nélkül)                     ║
-║       • Quant + AI szűrő (csak magas AI konfidenciánál vesz)     ║
+║       • Csak Quant stratégia (v3, AI nélkül)                    ║
+║       • Quant + AI szűrő (csak magas AI konfidenciánál vesz)    ║
 ║       • Buy & Hold                                               ║
-║  5. AI modell önfejlesztése: minden lezárt trade visszakerül     ║
-║     a score-history táblába → a modell tanul a backtestből       ║
+║  5. AI modell önfejlesztése: minden lezárt trade visszakerül    ║
+║     a score-history táblába → a modell tanul a backtestből      ║
 ║                                                                  ║
 ║  HOW TO RUN:                                                     ║
-║    1. python ai_layer.py --train   (első alkalommal)             ║
+║    1. python ai_layer.py --train   (első alkalommal)            ║
 ║    2. python backtest_v2.py                                      ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
@@ -28,7 +28,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 # Saját modulok
-from ai_layer import AIAnalyzer, ScoreHistoryTable, FEATURE_NAMES
+from ai_layer import AIAnalyzer, ScoreHistoryTable, FEATURE_NAMES, save_trade_data
 from aibotv3 import (
     BUY_THRESHOLD,
     SELL_THRESHOLD,
@@ -41,33 +41,35 @@ from aibotv3 import (
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
 
-WATCHLIST = [# Tech & AI (A te eddigi kedvenceid)
+WATCHLIST = [
+    # Tech & AI
     "NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NFLX", "PANW", "DELL",
-    # Pénzügy (Finance)
-    "JPM", "V", "MA", "BAC", "GS", 
-    # Egészségügy (Healthcare)
+    # Pénzügy
+    "JPM", "V", "MA", "BAC", "GS",
+    # Egészségügy
     "JNJ", "UNH", "LLY", "PFE", "MRK",
-    # Ipar & Védelem (Defense/Industrials)
+    # Ipar & Védelem
     "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE",
-    #plusz befektett cégek
-     "NOW", "CVS","VCEL", "AXON", "MC","AIR", "COHR", 
-    "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT"]
+    # Egyéb befektetett cégek
+    "NOW", "CVS", "VCEL", "AXON", "MC", "AIR", "COHR",
+    "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT",
+]
 
 CAPITAL_PER_STOCK = 1000.0
 BACKTEST_PERIOD   = "7y"
 COMMISSION_PCT    = 0.001
 
-BUY_THRESHOLD = 5
+BUY_THRESHOLD     = 5    # felülírja az importált értéket
 
 # AI szűrő: csak akkor vesz, ha az AI bullish valószínűsége legalább ennyi
-AI_BUY_FILTER_PCT  = 60.0   # % — alatta nem vesz az AI-szűrt mód
-AI_SELL_FILTER_PCT = 55.0   # % — fölötte tartja (nem ad el)
+AI_BUY_FILTER_PCT  = 60.0
+AI_SELL_FILTER_PCT = 55.0
 
 WIN_THRESHOLD_PCT  = 5.0    # trade "nyertes" ha > 5% hozam
 
 
 # ═══════════════════════════════════════════════════════
-#  STANDALONE FÜGGVÉNYEK — importálva a aibotv3-ból
+#  STANDALONE FÜGGVÉNYEK — importálva a v3_ai-ból
 #  (Ezeket a backtest közvetlenül hívja naponként)
 # ═══════════════════════════════════════════════════════
 
@@ -77,6 +79,7 @@ def _get(row, key, default):
         return default if (v != v) else v
     except:
         return default
+
 
 def build_context(ticker, curr, prev, data_slice, benchmark_slice,
                   bull_score, bear_score, net_score, reasons,
@@ -332,8 +335,10 @@ def score_day(curr, prev, data_tail, benchmark_tail) -> tuple[int, int, dict, fl
     s9_pts = 0
     vam_val = 0.0
     try:
-        # FONTOS: csak akkor számolunk, ha van elég adat (i >= 63 a hívó oldalon,
-        # de itt data_tail hosszát ellenőrizzük hogy ne legyen negatív index)
+        # FONTOS: data_tail.iloc[0]-t használunk, nem iloc[-63]-t.
+        # Ha data_tail 63 napos szelet, az iloc[-63] == iloc[0].
+        # Ha rövidebb (periódus eleje), az iloc[-63] negatív irányból
+        # indexelne → rossz értéket adna. Az iloc[0] mindig biztonságos.
         ret63 = data_tail["Close"].pct_change().dropna()
         if len(data_tail) >= 63 and len(ret63) >= 30:
             pr = float(data_tail["Close"].iloc[-1] / data_tail["Close"].iloc[0] - 1)
@@ -413,32 +418,22 @@ def backtest_ticker(ticker: str, data: pd.DataFrame,
         )
         net = bull - bear
 
-        buy_signal  = bull >= BUY_THRESHOLD
-        sell_signal = bear >= SELL_THRESHOLD
+        # AI context
+        ctx = build_context(
+            ticker, curr_row, prev_row, tail_w, bench_sub,
+            bull, bear, net, [], s_scores, vam_val
+        )
 
-        # ── AI predikció: CSAK jelzés napján fut ─────────────
-        # TELJESÍTMÉNY KRITIKUS: az AI predikció ~0.5ms/hívás.
-        # 550 nap × 10 részvény = 5500 hívás ha minden napra fut → lassú.
-        # De jelzés napok száma ~15-30/részvény → 150-300 hívás → 10-20× gyorsabb.
         ai_bull_pct = 50.0
-        if (buy_signal or sell_signal) and ai_analyzer and ai_analyzer.is_ready():
-            ctx = build_context(
-                ticker, curr_row, prev_row, tail_w, bench_sub,
-                bull, bear, net, [], s_scores, vam_val
-            )
+        if ai_analyzer and ai_analyzer.is_ready():
             try:
                 report      = ai_analyzer.predict(ctx)
                 ai_bull_pct = report.get("bull_pct", 50.0)
-            except Exception:
+            except:
                 pass
-        elif buy_signal or sell_signal:
-            # AI nincs betöltve, de jelzés van → context kell a score_table-hoz
-            ctx = build_context(
-                ticker, curr_row, prev_row, tail_w, bench_sub,
-                bull, bear, net, [], s_scores, vam_val
-            )
-        else:
-            ctx = {}
+
+        buy_signal  = bull >= BUY_THRESHOLD
+        sell_signal = bear >= SELL_THRESHOLD
 
         _apply_signals(quant, buy_signal, sell_signal,
                        date, next_open, capital, bull, ctx, score_table, ticker,
@@ -504,7 +499,18 @@ def _apply_signals(port, buy_signal, sell_signal,
                    date, next_open, capital, bull_score,
                    ctx, score_table, ticker,
                    update_score_table=False):
-    """Segédfüggvény: egy portfólión alkalmazza a vétel/eladás logikát."""
+    """
+    Segédfüggvény: egy portfólión alkalmazza a vétel/eladás logikát.
+
+    JAVÍTÁS — Entry vs Exit score:
+    ───────────────────────────────
+    A score_table-ba és a trade rekordba az ENTRY pillanatában
+    mért bull_score kerül, nem a kilépéskor aktuális érték.
+    Miért fontos: a Random Forest azt tanulja meg, hogy melyik
+    BELÉPÉSI score-nál milyen az eredmény. Ha a kilépési score-t
+    mentenénk, az összekeverné a kauzalitást — a modell olyan
+    adatból tanulna, ami a döntés UTÁN keletkezett.
+    """
     if port["position"] is None and buy_signal:
         comm   = next_open * COMMISSION_PCT
         shares = port["cash"] / (next_open + comm)
@@ -513,16 +519,20 @@ def _apply_signals(port, buy_signal, sell_signal,
             "entry_date":  date,
             "entry_price": next_open,
             "shares":      shares,
-            "bull_score":  bull_score,
-            "context":     ctx,
+            "bull_score":  bull_score,   # ← ENTRY score mentése
+            "context":     ctx,          # ← ENTRY context mentése
         }
 
     elif port["position"] is not None and sell_signal:
         comm     = next_open * COMMISSION_PCT
         proceeds = port["position"]["shares"] * (next_open - comm)
         pnl_pct  = (proceeds / capital - 1) * 100
-        is_win   = pnl_pct > 5.0
+        is_win   = pnl_pct > WIN_THRESHOLD_PCT
+
+        # ← ENTRY adatok kinyerése — nem a jelenlegi bull_score!
         entry_bull_score = port["position"]["bull_score"]
+        entry_ctx        = port["position"]["context"]
+
         trade = {
             "entry_date":   port["position"]["entry_date"],
             "exit_date":    date,
@@ -531,13 +541,13 @@ def _apply_signals(port, buy_signal, sell_signal,
             "pnl_usd":      proceeds - capital,
             "pnl_pct":      pnl_pct,
             "holding_days": (date - port["position"]["entry_date"]).days,
-            "bull_score":   entry_bull_score,
-            "context":      port["position"]["context"],
+            "bull_score":   entry_bull_score,   # ← ENTRY score
+            "context":      entry_ctx,           # ← ENTRY context
         }
         port["trades"].append(trade)
         port["cash"] = proceeds
 
-        # Score-history tábla frissítése (önfejlesztés)
+        # Score-history frissítése az ENTRY score alapján
         if update_score_table and score_table:
             score_table.update(ticker, entry_bull_score, is_win)
 
@@ -736,9 +746,41 @@ if __name__ == "__main__":
     if results:
         print_summary(results, CAPITAL_PER_STOCK)
 
-        # Score-history visszamentése (AI tanult a backtest-ből)
+        # ── Score-history mentése ─────────────────────────────
         if ai_analyzer.is_ready():
             score_table.save("models/score_history.json")
-            print("  ✅ Score-history frissítve a backtest adataival.")
+            print("  ✅ Score-history frissítve.")
+
+        # ── Valós trade adatok mentése az ai_layer tanításához ─
+        # Összegyűjtjük az összes quant trade context+label párját.
+        # Ezeket a save_trade_data() fájlba írja (append mód),
+        # hogy a következő --train futtatás felhasználhassa.
+        #
+        # MIÉRT CSAK A QUANT TRADE-EK?
+        # Az AI-szűrt trade-ek körkörös logikát alkotnának:
+        # az AI szűrte őket → az ő adatukból tanulna → önmaga
+        # megerősítése (confirmation bias). A quant trade-ek
+        # az AI előtt keletkeztek, ezért objektív tanítóadatok.
+        all_trade_contexts = []
+        all_trade_labels   = []
+
+        for r in results:
+            ticker = r["ticker"]
+            for trade in r["quant"]["trades"]:
+                ctx = trade.get("context", {})
+                if not ctx:
+                    continue
+                ctx["ticker"] = ticker
+                is_win = trade.get("pnl_pct", 0) > WIN_THRESHOLD_PCT
+                all_trade_contexts.append(ctx)
+                all_trade_labels.append(int(is_win))
+
+        if all_trade_contexts:
+            save_trade_data(all_trade_contexts, all_trade_labels)
+            wins = sum(all_trade_labels)
+            total = len(all_trade_labels)
+            print(f"  ✅ {total} trade elmentve tanításhoz "
+                  f"(win rate: {wins/total*100:.1f}%)")
+            print(f"  ℹ️  Újratanításhoz futtasd: python ai_layer.py --train")
     else:
         print("\n❌ Nincs eredmény.")
