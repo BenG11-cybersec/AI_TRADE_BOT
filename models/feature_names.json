@@ -1,0 +1,1 @@
+["s1_trend_score", "s2_macd_score", "s3_rsi_score", "s3_div_bull", "s3_div_bear", "s4_bb_score", "s5_adx_score", "s6_obv_score", "s7_rs_score", "s8_52w_score", "s9_vam_score", "bull_score_total", "bear_score_total", "net_score", "rsi_raw", "adx_raw", "bb_width_raw", "obv_slope_raw", "vam_raw", "hist_win_rate", "hist_sample_count", "above_sma200", "sma50_slope", "volatility_30d"]
