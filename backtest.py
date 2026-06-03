@@ -41,12 +41,20 @@ from aibotv3 import (
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
 
-WATCHLIST = ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN",
-             "GOOGL", "META", "NFLX", "PANW", "DELL"]
+WATCHLIST = [# Tech & AI (A te eddigi kedvenceid)
+    "NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NFLX", "PANW", "DELL",
+    # Pénzügy (Finance)
+    "JPM", "V", "MA", "BAC", "GS", 
+    # Egészségügy (Healthcare)
+    "JNJ", "UNH", "LLY", "PFE", "MRK",
+    # Ipar & Védelem (Defense/Industrials)
+    "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE"]
 
 CAPITAL_PER_STOCK = 1000.0
-BACKTEST_PERIOD   = "3y"
+BACKTEST_PERIOD   = "7y"
 COMMISSION_PCT    = 0.001
+
+BUY_THRESHOLD = 5
 
 # AI szűrő: csak akkor vesz, ha az AI bullish valószínűsége legalább ennyi
 AI_BUY_FILTER_PCT  = 60.0   # % — alatta nem vesz az AI-szűrt mód
