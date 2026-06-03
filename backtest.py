@@ -48,7 +48,10 @@ WATCHLIST = [# Tech & AI (A te eddigi kedvenceid)
     # Egészségügy (Healthcare)
     "JNJ", "UNH", "LLY", "PFE", "MRK",
     # Ipar & Védelem (Defense/Industrials)
-    "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE"]
+    "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE",
+    #plusz befektett cégek
+     "NOW", "CVS","VCEL", "AXON", "MC","AIR", "COHR", 
+    "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT"]
 
 CAPITAL_PER_STOCK = 1000.0
 BACKTEST_PERIOD   = "7y"
@@ -519,7 +522,7 @@ def _apply_signals(port, buy_signal, sell_signal,
         proceeds = port["position"]["shares"] * (next_open - comm)
         pnl_pct  = (proceeds / capital - 1) * 100
         is_win   = pnl_pct > 5.0
-
+        entry_bull_score = port["position"]["bull_score"]
         trade = {
             "entry_date":   port["position"]["entry_date"],
             "exit_date":    date,
@@ -528,7 +531,7 @@ def _apply_signals(port, buy_signal, sell_signal,
             "pnl_usd":      proceeds - capital,
             "pnl_pct":      pnl_pct,
             "holding_days": (date - port["position"]["entry_date"]).days,
-            "bull_score":   bull_score,
+            "bull_score":   entry_bull_score,
             "context":      port["position"]["context"],
         }
         port["trades"].append(trade)
@@ -536,7 +539,7 @@ def _apply_signals(port, buy_signal, sell_signal,
 
         # Score-history tábla frissítése (önfejlesztés)
         if update_score_table and score_table:
-            score_table.update(ticker, bull_score, is_win)
+            score_table.update(ticker, entry_bull_score, is_win)
 
         port["position"] = None
 
