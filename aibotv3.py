@@ -45,6 +45,8 @@ import pandas as pd
 import pandas_ta as ta
 import numpy as np
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
 
 # ── AI Layer import ───────────────────────────────────
 # Ha az ai_layer.py ugyanabban a mappában van, ez automatikusan betöltődik.
@@ -61,8 +63,10 @@ except ImportError:
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
 
-DISCORD_WEBHOOK_BULL = "https://discord.com/api/webhooks/1511371177669431447/CHdWK10D8Ye8K4mdguGAlx6wSTdyGBxRJScZWWomti6lWYkSMRpte3BGy3wpCFXZwn4O"
-DISCORD_WEBHOOK_BEAR = "https://discord.com/api/webhooks/1511721351050956993/sKbh-BUzvSF6nmj77kGyeJuev_4hzR6C3gBZ0rr__1PqyMSzo_qHdBe-eaGRrOez5rXi"
+load_dotenv()
+
+DISCORD_WEBHOOK_BULL = os.getnev("bull_url", "BACKUP")
+DISCORD_WEBHOOK_BEAR = os.getenv("bear_url", "BACKUP")
 
 WATCHLIST = ["NVDA", "DELL", "PANW", "RHM.DE", "NFLX", "AAPL", "MSFT", "NOW", "CVS","VCEL", "AXON", "MC","AIR", "COHR", "BLK", "BYD","CVS", "LCID", "DOCS", "S", "VST", "KRNT"]
 
