@@ -1,1 +1,752 @@
-{}
+{
+  "NVDA": {
+    "6": {
+      "wins": 2,
+      "total": 2
+    },
+    "5": {
+      "wins": 12,
+      "total": 12
+    }
+  },
+  "GLOBAL": {
+    "6": {
+      "wins": 278,
+      "total": 432
+    },
+    "5": {
+      "wins": 602,
+      "total": 858
+    },
+    "7": {
+      "wins": 140,
+      "total": 194
+    },
+    "10": {
+      "wins": 10,
+      "total": 12
+    },
+    "8": {
+      "wins": 52,
+      "total": 92
+    },
+    "9": {
+      "wins": 20,
+      "total": 26
+    },
+    "11": {
+      "wins": 2,
+      "total": 4
+    },
+    "13": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "AAPL": {
+    "5": {
+      "wins": 26,
+      "total": 26
+    },
+    "7": {
+      "wins": 8,
+      "total": 8
+    },
+    "6": {
+      "wins": 14,
+      "total": 14
+    }
+  },
+  "MSFT": {
+    "6": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 18,
+      "total": 18
+    },
+    "7": {
+      "wins": 6,
+      "total": 6
+    }
+  },
+  "TSLA": {
+    "7": {
+      "wins": 4,
+      "total": 4
+    },
+    "5": {
+      "wins": 18,
+      "total": 18
+    },
+    "6": {
+      "wins": 10,
+      "total": 10
+    }
+  },
+  "AMZN": {
+    "5": {
+      "wins": 12,
+      "total": 18
+    },
+    "6": {
+      "wins": 10,
+      "total": 10
+    },
+    "10": {
+      "wins": 2,
+      "total": 2
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "GOOGL": {
+    "5": {
+      "wins": 10,
+      "total": 10
+    },
+    "6": {
+      "wins": 12,
+      "total": 12
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "META": {
+    "5": {
+      "wins": 20,
+      "total": 24
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    },
+    "6": {
+      "wins": 4,
+      "total": 4
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "NFLX": {
+    "5": {
+      "wins": 14,
+      "total": 14
+    },
+    "7": {
+      "wins": 10,
+      "total": 10
+    },
+    "8": {
+      "wins": 4,
+      "total": 4
+    },
+    "6": {
+      "wins": 12,
+      "total": 14
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "PANW": {
+    "6": {
+      "wins": 14,
+      "total": 14
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    },
+    "5": {
+      "wins": 16,
+      "total": 16
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "DELL": {
+    "7": {
+      "wins": 6,
+      "total": 6
+    },
+    "6": {
+      "wins": 8,
+      "total": 8
+    },
+    "5": {
+      "wins": 14,
+      "total": 14
+    }
+  },
+  "JPM": {
+    "9": {
+      "wins": 2,
+      "total": 4
+    },
+    "6": {
+      "wins": 0,
+      "total": 20
+    },
+    "7": {
+      "wins": 0,
+      "total": 2
+    },
+    "5": {
+      "wins": 10,
+      "total": 16
+    }
+  },
+  "V": {
+    "5": {
+      "wins": 14,
+      "total": 16
+    },
+    "6": {
+      "wins": 4,
+      "total": 6
+    },
+    "8": {
+      "wins": 4,
+      "total": 4
+    }
+  },
+  "MA": {
+    "6": {
+      "wins": 10,
+      "total": 20
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    },
+    "5": {
+      "wins": 2,
+      "total": 18
+    },
+    "7": {
+      "wins": 0,
+      "total": 8
+    },
+    "8": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "BAC": {
+    "6": {
+      "wins": 4,
+      "total": 12
+    },
+    "5": {
+      "wins": 20,
+      "total": 26
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    },
+    "8": {
+      "wins": 0,
+      "total": 4
+    }
+  },
+  "GS": {
+    "8": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 14,
+      "total": 18
+    },
+    "6": {
+      "wins": 6,
+      "total": 12
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "JNJ": {
+    "6": {
+      "wins": 8,
+      "total": 14
+    },
+    "7": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 12,
+      "total": 18
+    }
+  },
+  "UNH": {
+    "6": {
+      "wins": 4,
+      "total": 4
+    },
+    "7": {
+      "wins": 8,
+      "total": 8
+    },
+    "9": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 18,
+      "total": 18
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "LLY": {
+    "6": {
+      "wins": 10,
+      "total": 12
+    },
+    "8": {
+      "wins": 2,
+      "total": 4
+    },
+    "5": {
+      "wins": 18,
+      "total": 20
+    },
+    "7": {
+      "wins": 6,
+      "total": 6
+    }
+  },
+  "PFE": {
+    "5": {
+      "wins": 14,
+      "total": 26
+    },
+    "8": {
+      "wins": 0,
+      "total": 2
+    },
+    "7": {
+      "wins": 2,
+      "total": 8
+    },
+    "6": {
+      "wins": 6,
+      "total": 12
+    },
+    "10": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "MRK": {
+    "5": {
+      "wins": 12,
+      "total": 30
+    },
+    "7": {
+      "wins": 0,
+      "total": 2
+    },
+    "6": {
+      "wins": 0,
+      "total": 10
+    },
+    "10": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "LMT": {
+    "5": {
+      "wins": 2,
+      "total": 24
+    },
+    "7": {
+      "wins": 0,
+      "total": 4
+    },
+    "8": {
+      "wins": 0,
+      "total": 12
+    },
+    "6": {
+      "wins": 0,
+      "total": 16
+    },
+    "9": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "RTX": {
+    "5": {
+      "wins": 8,
+      "total": 20
+    },
+    "6": {
+      "wins": 6,
+      "total": 14
+    },
+    "7": {
+      "wins": 0,
+      "total": 10
+    }
+  },
+  "NOC": {
+    "6": {
+      "wins": 6,
+      "total": 18
+    },
+    "5": {
+      "wins": 12,
+      "total": 30
+    },
+    "8": {
+      "wins": 0,
+      "total": 6
+    }
+  },
+  "BA": {
+    "5": {
+      "wins": 8,
+      "total": 36
+    },
+    "6": {
+      "wins": 2,
+      "total": 10
+    },
+    "7": {
+      "wins": 2,
+      "total": 6
+    },
+    "8": {
+      "wins": 0,
+      "total": 4
+    }
+  },
+  "CAT": {
+    "5": {
+      "wins": 32,
+      "total": 32
+    },
+    "6": {
+      "wins": 6,
+      "total": 6
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "RHM.DE": {
+    "6": {
+      "wins": 12,
+      "total": 12
+    },
+    "5": {
+      "wins": 20,
+      "total": 20
+    },
+    "7": {
+      "wins": 6,
+      "total": 6
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "NOW": {
+    "7": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 14,
+      "total": 24
+    },
+    "6": {
+      "wins": 6,
+      "total": 8
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    },
+    "9": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "CVS": {
+    "5": {
+      "wins": 12,
+      "total": 12
+    },
+    "8": {
+      "wins": 2,
+      "total": 4
+    },
+    "6": {
+      "wins": 14,
+      "total": 18
+    },
+    "10": {
+      "wins": 4,
+      "total": 4
+    },
+    "7": {
+      "wins": 6,
+      "total": 8
+    }
+  },
+  "VCEL": {
+    "5": {
+      "wins": 30,
+      "total": 32
+    },
+    "8": {
+      "wins": 4,
+      "total": 4
+    },
+    "6": {
+      "wins": 12,
+      "total": 12
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    }
+  },
+  "AXON": {
+    "7": {
+      "wins": 10,
+      "total": 10
+    },
+    "5": {
+      "wins": 12,
+      "total": 12
+    },
+    "6": {
+      "wins": 12,
+      "total": 12
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "MC": {
+    "8": {
+      "wins": 4,
+      "total": 4
+    },
+    "6": {
+      "wins": 6,
+      "total": 6
+    },
+    "11": {
+      "wins": 2,
+      "total": 2
+    },
+    "5": {
+      "wins": 28,
+      "total": 28
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "AIR": {
+    "5": {
+      "wins": 12,
+      "total": 14
+    },
+    "6": {
+      "wins": 12,
+      "total": 14
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    }
+  },
+  "COHR": {
+    "6": {
+      "wins": 18,
+      "total": 18
+    },
+    "5": {
+      "wins": 22,
+      "total": 22
+    },
+    "9": {
+      "wins": 2,
+      "total": 2
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    },
+    "7": {
+      "wins": 0,
+      "total": 4
+    }
+  },
+  "BLK": {
+    "8": {
+      "wins": 6,
+      "total": 6
+    },
+    "5": {
+      "wins": 18,
+      "total": 18
+    },
+    "10": {
+      "wins": 2,
+      "total": 2
+    },
+    "7": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "BYD": {
+    "5": {
+      "wins": 22,
+      "total": 22
+    },
+    "7": {
+      "wins": 4,
+      "total": 4
+    },
+    "6": {
+      "wins": 6,
+      "total": 6
+    }
+  },
+  "LCID": {
+    "5": {
+      "wins": 0,
+      "total": 36
+    },
+    "6": {
+      "wins": 0,
+      "total": 6
+    },
+    "8": {
+      "wins": 0,
+      "total": 4
+    },
+    "7": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "DOCS": {
+    "5": {
+      "wins": 0,
+      "total": 14
+    },
+    "11": {
+      "wins": 0,
+      "total": 2
+    },
+    "7": {
+      "wins": 0,
+      "total": 4
+    },
+    "6": {
+      "wins": 0,
+      "total": 2
+    },
+    "8": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "S": {
+    "6": {
+      "wins": 0,
+      "total": 14
+    },
+    "7": {
+      "wins": 0,
+      "total": 6
+    },
+    "5": {
+      "wins": 0,
+      "total": 20
+    },
+    "13": {
+      "wins": 0,
+      "total": 2
+    }
+  },
+  "VST": {
+    "5": {
+      "wins": 26,
+      "total": 36
+    },
+    "7": {
+      "wins": 8,
+      "total": 8
+    },
+    "6": {
+      "wins": 2,
+      "total": 8
+    },
+    "8": {
+      "wins": 2,
+      "total": 2
+    }
+  },
+  "KRNT": {
+    "6": {
+      "wins": 14,
+      "total": 16
+    },
+    "5": {
+      "wins": 30,
+      "total": 30
+    },
+    "8": {
+      "wins": 4,
+      "total": 4
+    },
+    "7": {
+      "wins": 10,
+      "total": 10
+    }
+  }
+}
