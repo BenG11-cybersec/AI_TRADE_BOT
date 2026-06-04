@@ -611,6 +611,15 @@ def train_model(backtest_results: list[dict] = None,
     # ── 3. Teljes valós adathalmaz összerakása ────────────
     all_real_contexts = saved_contexts + new_contexts
     all_real_labels   = saved_labels   + new_labels
+    
+    # --- JAVÍTÁS: A Score Tábla újraépítése a betöltött valós adatokból ---
+    # Ha ezt nem tesszük meg, a tábla üres marad, és üres JSON-ként fog elmentődni!
+    for ctx, label in zip(all_real_contexts, all_real_labels):
+        ticker = ctx.get("ticker", "GLOBAL")
+        bull_score = int(ctx.get("bull_score", 0))
+        is_win = bool(label)
+        score_table.update(ticker, bull_score, is_win)
+    # ----------------------------------------------------------------------
 
     # Feature vektorok kinyerése a context dict-ekből
     X_real_list = []
@@ -1053,11 +1062,28 @@ if __name__ == "__main__":
 
     if args.train:
         run_search = not args.no_hyperparam
-        pipeline, score_table = train_model(
-            backtest_results=None,
-            run_hyperparam_search=run_search
-        )
-        print("✅ Tanítás kész!")
+        import pickle
+        import os
+        import sys
+    
+        cache_path = "models/raw_backtest_data.pkl"
+    
+        if os.path.exists(cache_path):
+           print(f"📦 Valós backtest adatok betöltése a {cache_path} fájlból...")
+           with open(cache_path, "rb") as f:
+              real_data = pickle.load(f)
+            
+           # ITT A LÉNYEG: A None helyett a real_data-t küldjük be!
+           # A run_search kapcsolód pedig marad, ahogy te is megírtad.
+           pipeline, score_table = train_model(
+              backtest_results=real_data,
+              run_hyperparam_search=run_search
+           )
+           print("✅ Tanítás kész! A score_history.json sikeresen frissítve a valós adatokból!")
+        else:
+           print("⚠️ KRITIKUS HIBA: Nem találtam 'raw_backtest_data.pkl' fájlt!")
+           print("💡 Megoldás: Futtasd le először a 'python backtest.py' parancsot!")
+           sys.exit(1)
 
     if args.test:
         analyzer = AIAnalyzer()
