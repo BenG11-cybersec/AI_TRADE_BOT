@@ -38,3 +38,7 @@ Once your webhooks are configured, simply run the live trading bot and see how i
 ```bash
 python aibotv3.py
 ```
+However if you would like to see first how the bot performs in ral enviroment compared to quant-only and Buy&Hold strategy then run this firdt and see how it would have performed with the given stocks in the past 7 years
+```bash
+python backtest_readonly.py
+```
