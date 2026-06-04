@@ -7,9 +7,18 @@ Open your terminal and clone the code to your local machine:
 git clone https://github.com/YOUR_USERNAME/AI_TRADE_BOT.git
 cd AI_TRADE_BOT
 ```
+**2.Make a venv**
+```bash
+python -m venv venv
+```
+You need to activate it everytime you want to use the bot: 
+```bash
+Linux/Mac: source venv/bin/activate
+Win: venv\Scripts\activate
+```
 
 **2. Install Dependencies**
-Make sure you have Python installed, then install the required packages:
+Make sure you have Python installed, then install the required packages(you need to make a venv to do this):
 ```bash
 pip install pandas numpy scikit-learn yfinance python-dotenv
 ```
