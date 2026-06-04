@@ -747,9 +747,20 @@ if __name__ == "__main__":
         print_summary(results, CAPITAL_PER_STOCK)
 
         # ── Score-history mentése ─────────────────────────────
-        if ai_analyzer.is_ready():
-            score_table.save("models/score_history.json")
-            print("  ✅ Score-history frissítve.")
+        # FONTOS: a score_table-t MINDIG mentjük, függetlenül attól
+        # hogy az ai_analyzer be volt-e töltve. A backtest során
+        # az _apply_signals() feltöltötte a memóriában lévő
+        # score_table-t — ezt kell fájlba írni.
+        import os
+        os.makedirs("models", exist_ok=True)
+        score_table.save("models/score_history.json")
+        # Ellenőrzés: hány bejegyzés van
+        total_entries = sum(
+            len(v) for k, v in score_table.table.items() if k != "GLOBAL"
+        )
+        global_entries = len(score_table.table.get("GLOBAL", {}))
+        print(f"  ✅ Score-history mentve: {total_entries} részvény-score bejegyzés, "
+              f"{global_entries} globális score érték.")
 
         # ── Valós trade adatok mentése az ai_layer tanításához ─
         # Összegyűjtjük az összes quant trade context+label párját.
@@ -777,10 +788,13 @@ if __name__ == "__main__":
 
         if all_trade_contexts:
             save_trade_data(all_trade_contexts, all_trade_labels)
-            wins = sum(all_trade_labels)
+            wins  = sum(all_trade_labels)
             total = len(all_trade_labels)
             print(f"  ✅ {total} trade elmentve tanításhoz "
                   f"(win rate: {wins/total*100:.1f}%)")
             print(f"  ℹ️  Újratanításhoz futtasd: python ai_layer.py --train")
+        else:
+            print("  ⚠️  Nem sikerült trade context-et menteni.")
+            print("       Ellenőrizd hogy a build_context() visszaad-e adatot.")
     else:
         print("\n❌ Nincs eredmény.")
