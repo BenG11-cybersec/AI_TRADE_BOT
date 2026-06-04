@@ -1062,28 +1062,11 @@ if __name__ == "__main__":
 
     if args.train:
         run_search = not args.no_hyperparam
-        import pickle
-        import os
-        import sys
-    
-        cache_path = "models/raw_backtest_data.pkl"
-    
-        if os.path.exists(cache_path):
-           print(f"📦 Valós backtest adatok betöltése a {cache_path} fájlból...")
-           with open(cache_path, "rb") as f:
-              real_data = pickle.load(f)
-            
-           # ITT A LÉNYEG: A None helyett a real_data-t küldjük be!
-           # A run_search kapcsolód pedig marad, ahogy te is megírtad.
-           pipeline, score_table = train_model(
-              backtest_results=real_data,
-              run_hyperparam_search=run_search
-           )
-           print("✅ Tanítás kész! A score_history.json sikeresen frissítve a valós adatokból!")
-        else:
-           print("⚠️ KRITIKUS HIBA: Nem találtam 'raw_backtest_data.pkl' fájlt!")
-           print("💡 Megoldás: Futtasd le először a 'python backtest.py' parancsot!")
-           sys.exit(1)
+        pipeline, score_table = train_model(
+            backtest_results=None,
+            run_hyperparam_search=run_search
+        )
+        print("✅ Tanítás kész!")
 
     if args.test:
         analyzer = AIAnalyzer()
