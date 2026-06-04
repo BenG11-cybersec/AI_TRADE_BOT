@@ -4,7 +4,7 @@ This project is an advanced, quantitative trading bot that combines a multi-fact
 **1. Clone the repository**
 Open your terminal and clone the code to your local machine:
 ```bash
-git clone [https://github.com/YOUR_USERNAME/AI_TRADE_BOT.git](https://github.com/YOUR_USERNAME/AI_TRADE_BOT.git)
+git clone https://github.com/YOUR_USERNAME/AI_TRADE_BOT.git
 cd AI_TRADE_BOT
 ```
 
