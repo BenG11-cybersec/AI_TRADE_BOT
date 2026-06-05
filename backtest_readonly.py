@@ -33,17 +33,18 @@ from aibotv3  import BUY_THRESHOLD, SELL_THRESHOLD, _aligned_relative_strength, 
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
 
-WATCHLIST = [
+"""WATCHLIST = [
     "NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NFLX", "PANW", "DELL",
     "JPM", "V", "MA", "BAC", "GS",
     "JNJ", "UNH", "LLY", "PFE", "MRK",
     "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE",
     "NOW", "CVS", "VCEL", "AXON", "MC", "AIR", "COHR",
     "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT",
-]
+]"""
+WATCHLIST = [ "ARM", "AMD", "SHOP", "BSX", "MU", "MCD"]
 
 CAPITAL_PER_STOCK  = 1000.0
-BACKTEST_PERIOD    = "7y"
+BACKTEST_PERIOD    = "4y"
 COMMISSION_PCT     = 0.001
 BUY_THRESHOLD_OVERRIDE = 5   # felülírja az importált értéket
 AI_BUY_FILTER_PCT  = 60.0
