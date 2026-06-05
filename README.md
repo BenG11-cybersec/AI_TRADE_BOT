@@ -38,3 +38,33 @@ Once your webhooks are configured, simply run the live trading bot and see how i
 ```bash
 python aibotv3.py
 ```
+However if you would like to see first how the bot performs in real enviroment compared to quant-only and Buy&Hold strategies then run this first and see how it would have performed with the given stocks in the past 7 years:
+```bash
+python backtest_readonly.py
+```
+
+# How to train the bot and customize:
+If you would like to train the bot with your own stocks and data you should do the following steps:
+
+**1.Change the ticker symbol**
+First change the tickers in the WATCHLIST in aibotv3.py and in backtest.py for the ones you would like to follow and get more precise evaluations.
+
+**2.Gather data**
+You nedd to gather infos for bot about these new stocks, therefore run the following command:
+```bash
+python backtest.py
+```
+This can take quite a long time, even couple of hours with normal hardwer setup, but if its take too long then you can set the random forest features in ai_layer.py lower, but note that in this case the quality of ai can be a little more inaccurate.
+
+**3.train the ai**
+Type this command to finally train the ai with the gathered datas:
+```bash
+python ai_layer.py --train
+```
+And whenever in the future you would like to train the bot with new datas then first type this command:
+```bash
+python ai_layer.py --clear-data
+```
+and then repeat the process from the first point("Change the ticker symbol").
+**4.Testing**
+And finally before running the aibotv3.py you can test the newly trained bot how it performs, with the backtest_readonly.py as it was formerly mentioned.
