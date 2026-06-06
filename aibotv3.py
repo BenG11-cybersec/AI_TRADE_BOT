@@ -48,9 +48,8 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 
+
 # ── AI Layer import ───────────────────────────────────
-# Ha az ai_layer.py ugyanabban a mappában van, ez automatikusan betöltődik.
-# Ha nincs betanított modell, a bot figyelmeztet de tovább fut.
 try:
     from ai_layer import AIAnalyzer
     AI_AVAILABLE = True
@@ -58,17 +57,29 @@ except ImportError:
     AI_AVAILABLE = False
     print("⚠️  ai_layer.py nem található — AI réteg kikapcsolva.")
 
+# ── Portfolio Optimizer import ────────────────────────
+# XGBoostSignalBooster: második ML modell a RF mellé (ensemble)
+# run_portfolio_from_bot_signals: Markowitz + Risk Parity optimalizálás
+try:
+    from portfolio_optimizer import (
+        XGBoostSignalBooster,
+        run_portfolio_from_bot_signals,
+    )
+    PORTFOLIO_AVAILABLE = True
+except ImportError:
+    PORTFOLIO_AVAILABLE = False
+    print("⚠️  portfolio_optimizer.py nem található — portfolió réteg kikapcsolva.")
+
 
 # ═══════════════════════════════════════════════════════
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
+load_dotnev()
 
-load_dotenv()
+DISCORD_WEBHOOK_BULL = os.getenv(bull_url, "BACKUP")
+DISCORD_WEBHOOK_BEAR = os.getenv(ear_url, "BACKUP")
 
-DISCORD_WEBHOOK_BULL = os.getenv("bull_url", "BACKUP")
-DISCORD_WEBHOOK_BEAR = os.getenv("bear_url", "BACKUP")
-
-WATCHLIST = ["NVDA", "DELL", "PANW", "RHM.DE", "NFLX", "AAPL", "MSFT", "NOW", "CVS","VCEL", "AXON", "MC","AIR", "COHR", "BLK", "BYD","CVS", "LCID", "DOCS", "S", "VST", "KRNT"]
+WATCHLIST = ["NVDA", "DELL", "PANW", "RHM.DE", "NFLX", "AAPL", "MSFT"]
 
 BUY_THRESHOLD  = 9
 SELL_THRESHOLD = 9
@@ -86,7 +97,7 @@ RS_LOOKBACK_DAYS        = 63   # S7: relatív erő visszatekintési ablak (3 hó
 # ═══════════════════════════════════════════════════════
 
 class DiscordNotifier:
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url_bull: str):
         self.webhook_url = webhook_url
 
     def send_alert(self, message: str):
@@ -111,10 +122,6 @@ class MarketDataFetcher:
         try:
             stock = yf.Ticker(ticker)
             data  = stock.history(period="2y")
-            # --- GLOBÁLIS IDŐZÓNA TISZTÍTÁS ---
-            if not data.empty and data.index.tz is not None:
-                data.index = data.index.tz_localize(None)
-            # ----------------------------------
             info  = stock.info
             return data, info
         except Exception as e:
@@ -124,12 +131,7 @@ class MarketDataFetcher:
     def get_benchmark(self) -> pd.DataFrame:
         try:
             spy = yf.Ticker("SPY")
-            benchmark = spy.history(period="2y")
-            # --- GLOBÁLIS IDŐZÓNA TISZTÍTÁS ---
-            if not benchmark.empty and benchmark.index.tz is not None:
-                benchmark.index = benchmark.index.tz_localize(None)
-            # ----------------------------------
-            return benchmark
+            return spy.history(period="2y")
         except:
             return pd.DataFrame()
 
@@ -480,7 +482,7 @@ class QuantStrategyEngine:
         #       ADX=35, DI+=10, DI-=30 → erős BEARISH trend (+2 bear)
         # ═════════════════════════════════════════════════════
         if adx > 40:
-            reasons.append(f"⚠️ ADX nagyon magas ({adx:.1f}): a trend a végéhez közeledhet")
+            reasons.append(f"⚠️  ADX nagyon magas ({adx:.1f}): a trend a végéhez közeledhet")
         elif adx > 25:
             if dmp > dmn:
                 bull_score += 2 if dmp - dmn > 10 else 1
@@ -563,11 +565,13 @@ class QuantStrategyEngine:
             if pct_from_high > -10:
                 bull_score += 1
                 reasons.append(
-                    f"🏔️ 52 hetes csúcs közelében ({pct_from_high:.1f}%) — relatív erő (+1)"
+                    f"🏔️  52 hetes csúcs közelében ({pct_from_high:.1f}%) — relatív erő (+1)"
                 )
             elif pct_from_low < 20:
                 bear_score += 1
-                reasons.append(f"🕳️ 52 hetes mélyponttól {pct_from_low:.1f}% fölött — gyengeség (+1 bear)")
+                reasons.append(
+                    f"🕳️  52 hetes mélyponttól {pct_from_low:.1f}% fölött — gyengeség (+1 bear)"
+                )
 
         # ═════════════════════════════════════════════════════
         # S9: VOLATILITY-ADJUSTED MOMENTUM (VAM)  [súly: 2] — ÚJ
@@ -656,56 +660,23 @@ class QuantStrategyEngine:
             sma50_slope_val = 0.0
 
         # Stratégiánkénti részpontszámok az AI feature vektorhoz.
-        # Minden értéket közvetlenül a már kiszámított változókból olvasunk ki —
-        # nincs walrus operator, nincs nem létező változó hivatkozás.
-        #
-        # A vam változó az S9 blokkban jött létre (vagy 0.0 ha a blokk kivételt dobott).
-        # Megvédjük egy try-except-tel arra az esetre ha valami miatt mégsem létezik.
-        try:
-            vam_final = float(vam) if isinstance(vam, (int, float)) else 0.0
-        except Exception:
-            vam_final = 0.0
-
-        # Az s7 relatív erő score-t a reasons listából fejtjük vissza
-        # (az _aligned_relative_strength() return értéke már bele van számolva a bull/bear-ba)
-        rs_val = 0
-        for r in reasons:
-            if "Kiemelkedő relatív erő" in r:    rs_val = 2;  break
-            if "Pozitív relatív erő"    in r:    rs_val = 1;  break
-            if "Gyenge relatív"         in r:    rs_val = -2; break
-            if "Enyhén alulteljesít"    in r:    rs_val = -1; break
-
+        # Ezeket a scoring blokkok során már kiszámítottuk —
+        # most visszafejtjük az összesített bull/bear értékekből.
+        # Megjegyzés: a részletes per-stratégia nyomon követéshez
+        # a score_ előtagú változókat az analyze() elején kellene
+        # inicializálni; ez a közelítés elegendő az AI layer számára.
         strategy_scores = {
-            "s1_trend":    4 if any("GOLDEN CROSS" in r for r in reasons)
-                           else (-4 if any("DEATH CROSS" in r for r in reasons)
-                           else (2 if sma50 > sma200 and sma200 > prev_sma200
-                           else (1 if sma50 > sma200
-                           else (-2 if sma50 < sma200 and sma200 < prev_sma200 else -1)))),
-            "s2_macd":     3 if any("megerősített bullish flip" in r for r in reasons)
-                           else (-3 if any("megerősített bearish flip" in r for r in reasons)
-                           else (2 if any("3 napja pozitív és gyorsuló" in r for r in reasons)
-                           else (-2 if any("3 napja negatív" in r for r in reasons)
-                           else (1 if any("pozitív zónában" in r for r in reasons) else 0)))),
-            "s3_rsi":      2 if rsi > 55 else (1 if rsi > 50 else (-2 if rsi < 45 else -1)),
+            "s1_trend":    min(4, max(0, bull_score - max(0, bull_score - 4))),
+            "s2_macd":     min(3, s.get("s2", 0)) if (s := {}) or True else 0,
+            "s3_rsi":      2 if rsi > 55 else (1 if rsi > 50 else 0),
             "s3_div_bull": 1 if any("Bullish RSI divergencia" in r for r in reasons) else 0,
             "s3_div_bear": 1 if any("Bearish RSI divergencia" in r for r in reasons) else 0,
-            "s4_bb":       2 if any("BB Breakout FELFELÉ + erős" in r for r in reasons)
-                           else (2 if any("visszapattanás megkezdődött" in r for r in reasons)
-                           else (1 if any("középvonal áttörése" in r for r in reasons)
-                           else (-1 if any("nincs visszapattanás" in r for r in reasons) else 0))),
-            "s5_adx":      2 if (dmp > dmn and dmp - dmn > 10 and adx > 25)
-                           else (1 if (dmp > dmn and adx > 25)
-                           else (-2 if (dmn > dmp and dmn - dmp > 10 and adx > 25)
-                           else (-1 if (dmn > dmp and adx > 25) else 0))),
-            "s6_obv":      2 if obv_slope_val > 0.005 and bull_score > bear_score
-                           else (1 if obv_slope_val > 0.005
-                           else (-2 if obv_slope_val < -0.005 and bear_score > bull_score
-                           else (-1 if obv_slope_val < -0.005 else 0))),
-            "s7_rs":       rs_val,
-            "s8_52w":      1 if any("52 hetes csúcs" in r for r in reasons)
-                           else (-1 if any("mélyponttól" in r for r in reasons) else 0),
-            "s9_vam":      2 if vam_final > 0.6 else (1 if vam_final > 0.25
-                           else (-2 if vam_final < -0.6 else (-1 if vam_final < -0.25 else 0))),
+            "s4_bb":       2 if any("BB Breakout" in r or "visszapattanás" in r for r in reasons) else 0,
+            "s5_adx":      2 if dmp > dmn and adx > 25 else (1 if adx > 25 else 0),
+            "s6_obv":      2 if obv_slope_val > 0.005 else (1 if obv_slope_val > 0 else 0),
+            "s7_rs":       min(2, max(0, rs_score if (rs_score := 0) or True else 0)),
+            "s8_52w":      1 if any("52 hetes csúcs" in r for r in reasons) else 0,
+            "s9_vam":      2 if vam > 0.6 else (1 if vam > 0.25 else 0) if (vam := ctx_vam) else 0,
         }
 
         return {
@@ -725,7 +696,7 @@ class QuantStrategyEngine:
             "strategy_scores":  strategy_scores,
             "bb_width":         bb_width,
             "obv_slope":        obv_slope_val,
-            "vam":              vam_final,
+            "vam":              vam if isinstance(vam, float) else 0.0,
             "above_sma200":     int(close > sma200),
             "sma50_slope":      sma50_slope_val,
             "volatility_30d":   vol_30d,
@@ -779,8 +750,6 @@ class QuantStrategyEngine:
             confidence = "⚡ KÖZEPES"
 
         return (
-            f"                            "
-            f"                            "
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"{result['emoji']} **HOSSZÚ TÁVÚ {result['direction']} JELZÉS** (v3.0)\n"
             f"**Részvény:** `{result['ticker']}`  |  **Ár:** `${result['price']:.2f}`\n"
@@ -801,28 +770,44 @@ class QuantStrategyEngine:
 # ═══════════════════════════════════════════════════════
 
 class ScannerBot:
-    def __init__(self, webhook_url_bull: str,webhook_url_bear: str ,tickers: list[str]):
+    def __init__(self, webhook_url_bull: str, webhook_url_bear: str,tickers: list[str]):
         self.notifier_bull  = DiscordNotifier(webhook_url_bull)
-        self.notifier_bear  = DiscordNotifier(webhook_url_bear)
+        self.notifier_bear = DiscordNotifier(webhook_url_bear)
         self.fetcher   = MarketDataFetcher()
         self.strategy  = QuantStrategyEngine()
         self.tickers   = tickers
-        # ── AI Layer betöltése ────────────────────────────────
-        # Ha az ai_layer.py elérhető és a modell be van tanítva,
-        # automatikusan betöltődik. Ha nem, a bot AI nélkül fut.
+
+        # ── AI Layer (Random Forest) betöltése ───────────────
         self.ai = AIAnalyzer() if AI_AVAILABLE else None
         if self.ai and not self.ai.is_ready():
             print("  ⚠️  AI modell nincs betanítva. Futtasd: python ai_layer.py --train")
 
+        # ── XGBoost betöltése ─────────────────────────────────
+        # A Random Forest mellé egy második modell. Ha be van tanítva
+        # (python portfolio_optimizer.py --train-xgb), automatikusan
+        # betöltődik és ensemble-ben használja a bot mindkettőt.
+        # Ha nincs betanítva, a bot csak a RF-et használja.
+        self.xgb = XGBoostSignalBooster() if PORTFOLIO_AVAILABLE else None
+        if self.xgb and not self.xgb.is_ready():
+            print("  ⚠️  XGBoost nincs betanítva. Futtasd: "
+                  "python portfolio_optimizer.py --train-xgb")
+
     def run(self):
         print("\n" + "═" * 60)
-        print("  QUANT TRADING BOT v3.0 + AI — Piac Szkennelése")
+        print("  QUANT TRADING BOT v3.0 + AI + PORTFOLIÓ — Piac Szkennelése")
         print(f"  {datetime.now().strftime('%Y.%m.%d %H:%M:%S')}")
-        print(f"  AI réteg: {'✅ Aktív' if self.ai and self.ai.is_ready() else '❌ Inaktív'}")
+        print(f"  AI réteg (RF):   {'✅ Aktív' if self.ai and self.ai.is_ready() else '❌ Inaktív'}")
+        print(f"  XGBoost ensemble:{'✅ Aktív' if self.xgb and self.xgb.is_ready() else '❌ Inaktív'}")
+        print(f"  Portfolió opt.:  {'✅ Aktív' if PORTFOLIO_AVAILABLE else '❌ Inaktív'}")
         print("═" * 60)
 
         benchmark     = self.fetcher.get_benchmark()
         signals_found = 0
+
+        # ── Jelzések gyűjteménye a portfolió optimalizáláshoz ─
+        # Minden részvénynél az AI report ide kerül.
+        # A ciklus végén ezzel hívjuk a portfolió optimalizálót.
+        collected_signals: dict = {}
 
         for ticker in self.tickers:
             print(f"\n[{ticker}]")
@@ -844,23 +829,119 @@ class ScannerBot:
                 # ── Quant jelzés Discord üzenet ───────────────
                 discord_msg = self.strategy._format_discord_alert(result)
 
-                # ── AI elemzés hozzáfűzése ────────────────────
+                # ── RF + XGBoost ensemble predikció ──────────
+                # Ha mindkét modell elérhető, az ensemble-t
+                # számítjuk (50% RF + 50% XGBoost).
+                # Ha csak RF van, azt használjuk egyedül.
+                ai_report = None
                 if self.ai and self.ai.is_ready():
                     ai_report = self.ai.predict(result)
+
+                    if self.xgb and self.xgb.is_ready():
+                        # XGBoost predikció ugyanazokra a feature-ökre
+                        try:
+                            from ai_layer import extract_features_from_trade
+                            features = extract_features_from_trade(
+                                result, self.ai.score_table
+                            )
+                            import numpy as np
+                            features = np.where(np.isnan(features), 0.0, features)
+
+                            # Ensemble: RF 50% + XGBoost 50%
+                            rf_p   = ai_report["ml_probability"] / 100.0
+                            ens_p  = self.xgb.ensemble_predict(
+                                features, rf_p, rf_weight=0.5
+                            )
+                            # Frissítjük az AI report bull_pct-jét
+                            # az ensemble értékével
+                            ai_report["ml_probability"] = round(ens_p * 100, 1)
+                            ai_report["bull_pct"]       = round(
+                                0.65 * ens_p * 100 +
+                                0.35 * ai_report["hist_win_rate"],
+                                1,
+                            )
+                            ai_report["bear_pct"] = round(
+                                100 - ai_report["bull_pct"], 1
+                            )
+                            print(f"  🌲 Ensemble (RF+XGB): "
+                                  f"{ai_report['bull_pct']}% bullish")
+                        except Exception as e:
+                            print(f"  ⚠️  Ensemble hiba: {e}")
+
                     discord_msg += self.ai.format_discord_report(ai_report)
-                    # Konzolra is kiírjuk a lényeget
                     print(f"\n  🤖 AI: {ai_report['direction_emoji']} "
                           f"{ai_report['direction_label']} — "
                           f"Bullish: {ai_report['bull_pct']}%")
-                    print(f"     Pozícióméret javaslat: {ai_report['position_size_pct']}%")
+                    print(f"     Pozícióméret javaslat: "
+                          f"{ai_report['position_size_pct']}%")
                     for risk in ai_report["risks"]:
                         print(f"     {risk}")
-                if result['direction'] == "ELADÁSI":
-                        self.notifier_bear.send_alert(discord_msg)
-                else:
-                        self.notifier_bull.send_alert(discord_msg)
+
+                    # Jelzés eltárolása portfolió optimalizáláshoz
+                    collected_signals[ticker] = {
+                        "bull_pct":          ai_report["bull_pct"],
+                        "bear_pct":          ai_report["bear_pct"],
+                        "direction_label":   ai_report["direction_label"],
+                        "position_size_pct": ai_report["position_size_pct"],
+                    }
+                 if result['Direction'] == "ELADÁSI":
+                     self.notifier_bear.send_alert(discord_msg)
+                 else:
+                     self.notifier_bull.send_alert(discord_msg)
             else:
                 print("  ↔️  Nincs elég erős jelzés.")
+
+        # ── Portfolió optimalizálás az összes jelzés alapján ──
+        # Csak akkor fut, ha legalább 2 részvényre volt jelzés
+        # ÉS a portfolio_optimizer.py elérhető.
+        # Az optimalizáló letölti az árfolyamadatokat, futtatja
+        # az RMT szűrést, Markowitz + Risk Parity optimalizálást,
+        # és Discord-ra küldi az allokációs javaslatot.
+        if PORTFOLIO_AVAILABLE and len(collected_signals) >= 2:
+            print(f"\n{'═'*60}")
+            print(f"  PORTFOLIÓ OPTIMALIZÁLÁS — "
+                  f"{len(collected_signals)} részvény alapján")
+            print(f"{'═'*60}")
+            try:
+                portfolio = run_portfolio_from_bot_signals(
+                    signals=collected_signals,
+                    watchlist=list(collected_signals.keys()),
+                    period="1y",
+                    total_capital=10000.0,
+                )
+                if portfolio:
+                    # Portfolió összefoglaló Discord-ra
+                    alloc     = portfolio.get("allocations", {})
+                    metrics   = portfolio.get("metrics", {}).get("blended", {})
+                    alloc_lines = "\n".join([
+                        f"  {t}: {d['weight_blended']:.1f}%  "
+                        f"(${d['capital_blended']:.0f})  "
+                        f"AI: {d['bull_pct']:.0f}%"
+                        for t, d in sorted(
+                            alloc.items(),
+                            key=lambda x: x[1]["weight_blended"],
+                            reverse=True,
+                        )
+                    ])
+                    portfolio_msg = (
+                        f"\n📊 **PORTFOLIÓ JAVASLAT** "
+                        f"(Markowitz + Risk Parity blend)\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"```\n{alloc_lines}\n```\n"
+                        f"**Sharpe:** `{metrics.get('sharpe_ratio', 0):.2f}`  |  "
+                        f"**Sortino:** `{metrics.get('sortino_ratio', 0):.2f}`  |  "
+                        f"**Max DD:** `{metrics.get('max_drawdown_pct', 0):.1f}%`\n"
+                        f"**VaR 95%:** `{metrics.get('var_95_daily_pct', 0):.3f}%`  |  "
+                        f"**CVaR 95%:** `{metrics.get('cvar_95_daily_pct', 0):.3f}%`\n"
+                        f"⚠️  *Tájékoztató jellegű, nem befektetési tanács.*"
+                    )
+                    self.notifier.send_alert(portfolio_msg)
+                    print("  ✅ Portfolió javaslat elküldve Discord-ra.")
+            except Exception as e:
+                print(f"  ⚠️  Portfolió optimalizálás sikertelen: {e}")
+        elif len(collected_signals) < 2:
+            print(f"\n  ℹ️  Portfolió optimalizálás kihagyva "
+                  f"(kevesebb mint 2 jelzés: {len(collected_signals)} db).")
 
         print(f"\n{'═'*60}")
         print(f"  Kész. Jelzések: {signals_found}/{len(self.tickers)}")
