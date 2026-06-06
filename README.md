@@ -20,7 +20,7 @@ Win: venv\Scripts\activate
 **2. Install Dependencies**
 Make sure you have Python installed, then install the required packages(you need to make a venv to do this):
 ```bash
-pip install pandas numpy scikit-learn yfinance python-dotenv
+pip install pandas numpy scikit-learn yfinance python-dotenv xgboost
 ```
 
 **3. Create a `.env` file**
