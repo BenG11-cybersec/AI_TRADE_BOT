@@ -105,7 +105,7 @@ class XGBoostSignalBooster:
             saved = joblib.load(XGB_MODEL_PATH)
             self.model  = saved["model"]
             self.scaler = saved["scaler"]
-            print("  🌲 XGBoost modell betöltve.")
+            print("  XGBoost modell betöltve.")
 
     def is_ready(self) -> bool:
         return self.model is not None

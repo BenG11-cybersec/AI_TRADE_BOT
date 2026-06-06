@@ -55,20 +55,18 @@ try:
     AI_AVAILABLE = True
 except ImportError:
     AI_AVAILABLE = False
-    print("⚠️  ai_layer.py nem található — AI réteg kikapcsolva.")
+    print("   ⚠️  ai_layer.py nem található — AI réteg kikapcsolva.")
 
 # ── Portfolio Optimizer import ────────────────────────
 # XGBoostSignalBooster: második ML modell a RF mellé (ensemble)
 # run_portfolio_from_bot_signals: Markowitz + Risk Parity optimalizálás
 try:
     from portfolio_optimizer import (
-        XGBoostSignalBooster,
-        run_portfolio_from_bot_signals,
-    )
+        XGBoostSignalBooster, run_portfolio_from_bot_signals)
     PORTFOLIO_AVAILABLE = True
 except ImportError:
     PORTFOLIO_AVAILABLE = False
-    print("⚠️  portfolio_optimizer.py nem található — portfolió réteg kikapcsolva.")
+    print("   ⚠️  portfolio_optimizer.py nem található — portfolió réteg kikapcsolva.")
 
 
 # ═══════════════════════════════════════════════════════
@@ -78,6 +76,7 @@ load_dotenv()
 
 DISCORD_WEBHOOK_BULL = os.getenv("bull_url", "BACKUP")
 DISCORD_WEBHOOK_BEAR = os.getenv("bear_url", "BACKUP")
+DISCORD_WEBHOOK_PORTFOLIO = os.getenv("portfolio_url", "BACKUP")
 
 # Ezeket a részvényeket elemzi a program egymástól függetlenül
 WATCHLIST = [ 
@@ -622,6 +621,7 @@ class QuantStrategyEngine:
         # Ha ez az arány > 0.5 → a részvény a saját kockázatához
         # képest is kiemelkedően teljesít → erős bullish jel.
         # ═════════════════════════════════════════════════════
+        vam = 0.0
         try:
             returns_63 = data["Close"].pct_change().tail(63).dropna()
             if len(returns_63) >= 30:
@@ -712,7 +712,7 @@ class QuantStrategyEngine:
             "s6_obv":      2 if obv_slope_val > 0.005 else (1 if obv_slope_val > 0 else 0),
             "s7_rs":       min(2, max(0, rs_score if (rs_score := 0) or True else 0)),
             "s8_52w":      1 if any("52 hetes csúcs" in r for r in reasons) else 0,
-            "s9_vam":      2 if vam > 0.6 else (1 if vam > 0.25 else 0) if (vam := ctx_vam) else 0,
+            "s9_vam":      2 if vam > 0.6 else (1 if vam > 0.25 else 0),
         }
 
         return {
@@ -806,14 +806,15 @@ class QuantStrategyEngine:
 # ═══════════════════════════════════════════════════════
 
 class ScannerBot:
-    def __init__(self, webhook_url_bull: str, webhook_url_bear: str,tickers: list[str], portfolio: list[str], budget: float):
+    def __init__(self, webhook_url_bull: str, webhook_url_bear: str,portfolio_url: str,tickers: list[str], portfolio: list[str], budget: float):
         self.notifier_bull  = DiscordNotifier(webhook_url_bull)
         self.notifier_bear = DiscordNotifier(webhook_url_bear)
+        self.notifier_portfolio = DiscordNotifier(portfolio_url)
         self.fetcher   = MarketDataFetcher()
         self.strategy  = QuantStrategyEngine()
         self.tickers   = tickers
         self.portfolio = portfolio
-
+        self.budget = budget
         # ── AI Layer (Random Forest) betöltése ───────────────
         self.ai = AIAnalyzer() if AI_AVAILABLE else None
         if self.ai and not self.ai.is_ready():
@@ -945,7 +946,7 @@ class ScannerBot:
                     signals=collected_signals,
                     watchlist=list(collected_signals.keys()),
                     period="1y",
-                    total_capital=budget,
+                    total_capital=self.budget,
                 )
                 if portfolio:
                     # Portfolió összefoglaló Discord-ra
@@ -973,7 +974,7 @@ class ScannerBot:
                         f"**CVaR 95%:** `{metrics.get('cvar_95_daily_pct', 0):.3f}%`\n"
                         f"⚠️  *Tájékoztató jellegű, nem befektetési tanács.*"
                     )
-                    self.notifier.send_alert(portfolio_msg)
+                    self.notifier_portfolio.send_alert(portfolio_msg)
                     print("  ✅ Portfolió javaslat elküldve Discord-ra.")
             except Exception as e:
                 print(f"  ⚠️  Portfolió optimalizálás sikertelen: {e}")
@@ -991,5 +992,5 @@ class ScannerBot:
 # ═══════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    bot = ScannerBot(DISCORD_WEBHOOK_BULL, DISCORD_WEBHOOK_BEAR, WATCHLIST, MY_PORTFOLIO, MY_BUDGET)
+    bot = ScannerBot(DISCORD_WEBHOOK_BULL, DISCORD_WEBHOOK_BEAR, DISCORD_WEBHOOK_PORTFOLIO ,WATCHLIST, MY_PORTFOLIO, MY_BUDGET)
     bot.run()
