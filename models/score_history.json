@@ -11,16 +11,16 @@
   },
   "GLOBAL": {
     "6": {
-      "wins": 278,
-      "total": 432
+      "wins": 280,
+      "total": 466
     },
     "5": {
-      "wins": 602,
-      "total": 858
+      "wins": 605,
+      "total": 928
     },
     "7": {
       "wins": 140,
-      "total": 194
+      "total": 206
     },
     "10": {
       "wins": 10,
@@ -28,11 +28,11 @@
     },
     "8": {
       "wins": 52,
-      "total": 92
+      "total": 99
     },
     "9": {
       "wins": 20,
-      "total": 26
+      "total": 27
     },
     "11": {
       "wins": 2,
@@ -88,7 +88,7 @@
   "AMZN": {
     "5": {
       "wins": 12,
-      "total": 18
+      "total": 19
     },
     "6": {
       "wins": 10,
@@ -120,7 +120,7 @@
   "META": {
     "5": {
       "wins": 20,
-      "total": 24
+      "total": 25
     },
     "7": {
       "wins": 2,
@@ -196,19 +196,19 @@
   "JPM": {
     "9": {
       "wins": 2,
-      "total": 4
+      "total": 5
     },
     "6": {
       "wins": 0,
-      "total": 20
+      "total": 24
     },
     "7": {
       "wins": 0,
-      "total": 2
+      "total": 3
     },
     "5": {
       "wins": 10,
-      "total": 16
+      "total": 18
     }
   },
   "V": {
@@ -228,7 +228,7 @@
   "MA": {
     "6": {
       "wins": 10,
-      "total": 20
+      "total": 21
     },
     "9": {
       "wins": 2,
@@ -236,25 +236,25 @@
     },
     "5": {
       "wins": 2,
-      "total": 18
+      "total": 22
     },
     "7": {
       "wins": 0,
-      "total": 8
+      "total": 11
     },
     "8": {
       "wins": 0,
-      "total": 2
+      "total": 3
     }
   },
   "BAC": {
     "6": {
       "wins": 4,
-      "total": 12
+      "total": 13
     },
     "5": {
       "wins": 20,
-      "total": 26
+      "total": 28
     },
     "7": {
       "wins": 4,
@@ -272,7 +272,7 @@
     },
     "5": {
       "wins": 14,
-      "total": 18
+      "total": 19
     },
     "6": {
       "wins": 6,
@@ -340,19 +340,19 @@
   "PFE": {
     "5": {
       "wins": 14,
-      "total": 26
+      "total": 28
     },
     "8": {
       "wins": 0,
-      "total": 2
+      "total": 3
     },
     "7": {
       "wins": 2,
-      "total": 8
+      "total": 9
     },
     "6": {
-      "wins": 6,
-      "total": 12
+      "wins": 7,
+      "total": 15
     },
     "10": {
       "wins": 2,
@@ -361,16 +361,16 @@
   },
   "MRK": {
     "5": {
-      "wins": 12,
-      "total": 30
+      "wins": 13,
+      "total": 35
     },
     "7": {
       "wins": 0,
-      "total": 2
+      "total": 3
     },
     "6": {
       "wins": 0,
-      "total": 10
+      "total": 12
     },
     "10": {
       "wins": 0,
@@ -379,20 +379,20 @@
   },
   "LMT": {
     "5": {
-      "wins": 2,
-      "total": 24
+      "wins": 3,
+      "total": 33
     },
     "7": {
       "wins": 0,
-      "total": 4
+      "total": 5
     },
     "8": {
       "wins": 0,
-      "total": 12
+      "total": 14
     },
     "6": {
       "wins": 0,
-      "total": 16
+      "total": 22
     },
     "9": {
       "wins": 0,
@@ -402,35 +402,35 @@
   "RTX": {
     "5": {
       "wins": 8,
-      "total": 20
+      "total": 23
     },
     "6": {
       "wins": 6,
-      "total": 14
+      "total": 15
     },
     "7": {
       "wins": 0,
-      "total": 10
+      "total": 11
     }
   },
   "NOC": {
     "6": {
-      "wins": 6,
-      "total": 18
+      "wins": 7,
+      "total": 22
     },
     "5": {
       "wins": 12,
-      "total": 30
+      "total": 33
     },
     "8": {
       "wins": 0,
-      "total": 6
+      "total": 8
     }
   },
   "BA": {
     "5": {
-      "wins": 8,
-      "total": 36
+      "wins": 9,
+      "total": 45
     },
     "6": {
       "wins": 2,
@@ -438,11 +438,11 @@
     },
     "7": {
       "wins": 2,
-      "total": 6
+      "total": 7
     },
     "8": {
       "wins": 0,
-      "total": 4
+      "total": 5
     }
   },
   "CAT": {
@@ -484,7 +484,7 @@
     },
     "5": {
       "wins": 14,
-      "total": 24
+      "total": 27
     },
     "6": {
       "wins": 6,
@@ -510,7 +510,7 @@
     },
     "6": {
       "wins": 14,
-      "total": 18
+      "total": 20
     },
     "10": {
       "wins": 4,
@@ -658,11 +658,11 @@
   "LCID": {
     "5": {
       "wins": 0,
-      "total": 36
+      "total": 50
     },
     "6": {
       "wins": 0,
-      "total": 6
+      "total": 8
     },
     "8": {
       "wins": 0,
@@ -670,13 +670,13 @@
     },
     "7": {
       "wins": 0,
-      "total": 2
+      "total": 3
     }
   },
   "DOCS": {
     "5": {
       "wins": 0,
-      "total": 14
+      "total": 20
     },
     "11": {
       "wins": 0,
@@ -698,15 +698,15 @@
   "S": {
     "6": {
       "wins": 0,
-      "total": 14
+      "total": 21
     },
     "7": {
       "wins": 0,
-      "total": 6
+      "total": 8
     },
     "5": {
       "wins": 0,
-      "total": 20
+      "total": 24
     },
     "13": {
       "wins": 0,
@@ -716,7 +716,7 @@
   "VST": {
     "5": {
       "wins": 26,
-      "total": 36
+      "total": 37
     },
     "7": {
       "wins": 8,
@@ -724,7 +724,7 @@
     },
     "6": {
       "wins": 2,
-      "total": 8
+      "total": 9
     },
     "8": {
       "wins": 2,
