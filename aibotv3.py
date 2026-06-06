@@ -77,7 +77,7 @@ except ImportError:
 load_dotnev()
 
 DISCORD_WEBHOOK_BULL = os.getenv(bull_url, "BACKUP")
-DISCORD_WEBHOOK_BEAR = os.getenv(ear_url, "BACKUP")
+DISCORD_WEBHOOK_BEAR = os.getenv(bear_url, "BACKUP")
 
 WATCHLIST = ["NVDA", "DELL", "PANW", "RHM.DE", "NFLX", "AAPL", "MSFT"]
 
