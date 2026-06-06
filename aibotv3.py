@@ -79,7 +79,32 @@ load_dotnev()
 DISCORD_WEBHOOK_BULL = os.getenv(bull_url, "BACKUP")
 DISCORD_WEBHOOK_BEAR = os.getenv(bear_url, "BACKUP")
 
-WATCHLIST = ["NVDA", "DELL", "PANW", "RHM.DE", "NFLX", "AAPL", "MSFT"]
+# Ezeket a részvényeket elemzi a program egymástól függetlenül
+WATCHLIST = [ 
+    # Tech & AI
+    "NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NFLX", "PANW", "DELL",
+    #Pénzügy
+    "JPM", "V", "MA", "BAC", "GS",
+    #Egészségügy
+    "JNJ", "UNH", "LLY", "PFE", "MRK",
+    #Ipar & Védelem
+    "LMT", "RTX", "NOC", "BA", "CAT", "RHM.DE",
+    #Egyéb befektetett cégek
+    "NOW", "CVS", "VCEL", "AXON", "MC", "AIR", "COHR",
+    "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT",
+     ]
+# Ezeket a részvényeket egy portfolióként kezeli és ezekre egy plussz 
+# külön modellt(RMT + Marchenko-Patur, Markovitz, stb...) futtat, ami meghatározza, hogy az eggyes részvények esetében
+# mekkora pozició érdemes nyitni a profit maximalizáció érdekében
+MY_PORTFOLIO = [
+    "NVDA", "AAPL", "MSFT", "TSLA", "PANW",
+    "JPM", "V", "MA", "BAC","RHM.DE",
+    "NOW", "CVS", "VCEL", "AXON", "MC", "AIR", "COHR",
+    "BLK", "BYD", "LCID", "DOCS", "S", "VST", "KRNT",
+    ]
+# Itt kel megdani, hogy mekkora keret áll rendelkézsre a befektetéshez és ezt a keret osztja szét
+# a portfolió optimalizáló a MY_PORTFOLIO-ban lévő részvények között, hogy az a lehető legtöbbet termelje
+MY_BUDGET = 1000.0 #a pénznem lényegtelen a mennyiség csak a fontos, mert arányokat nézz csak az optimalizáló
 
 BUY_THRESHOLD  = 9
 SELL_THRESHOLD = 9
@@ -770,12 +795,13 @@ class QuantStrategyEngine:
 # ═══════════════════════════════════════════════════════
 
 class ScannerBot:
-    def __init__(self, webhook_url_bull: str, webhook_url_bear: str,tickers: list[str]):
+    def __init__(self, webhook_url_bull: str, webhook_url_bear: str,tickers: list[str], portfolio: list[str], budget: float):
         self.notifier_bull  = DiscordNotifier(webhook_url_bull)
         self.notifier_bear = DiscordNotifier(webhook_url_bear)
         self.fetcher   = MarketDataFetcher()
         self.strategy  = QuantStrategyEngine()
         self.tickers   = tickers
+        self.portfolio = portfolio
 
         # ── AI Layer (Random Forest) betöltése ───────────────
         self.ai = AIAnalyzer() if AI_AVAILABLE else None
@@ -878,12 +904,13 @@ class ScannerBot:
                         print(f"     {risk}")
 
                     # Jelzés eltárolása portfolió optimalizáláshoz
-                    collected_signals[ticker] = {
-                        "bull_pct":          ai_report["bull_pct"],
-                        "bear_pct":          ai_report["bear_pct"],
-                        "direction_label":   ai_report["direction_label"],
-                        "position_size_pct": ai_report["position_size_pct"],
-                    }
+                    if ticker in self.portfolio:
+                       collected_signals[ticker] = {
+                           "bull_pct":          ai_report["bull_pct"],
+                           "bear_pct":          ai_report["bear_pct"],
+                           "direction_label":   ai_report["direction_label"],
+                           "position_size_pct": ai_report["position_size_pct"],
+                       }
                  if result['Direction'] == "ELADÁSI":
                      self.notifier_bear.send_alert(discord_msg)
                  else:
@@ -907,7 +934,7 @@ class ScannerBot:
                     signals=collected_signals,
                     watchlist=list(collected_signals.keys()),
                     period="1y",
-                    total_capital=10000.0,
+                    total_capital=budget,
                 )
                 if portfolio:
                     # Portfolió összefoglaló Discord-ra
@@ -953,5 +980,5 @@ class ScannerBot:
 # ═══════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    bot = ScannerBot(DISCORD_WEBHOOK_BULL, DISCORD_WEBHOOK_BEAR, WATCHLIST)
+    bot = ScannerBot(DISCORD_WEBHOOK_BULL, DISCORD_WEBHOOK_BEAR, WATCHLIST, MY_PORTFOLIO, MY_BUDGET)
     bot.run()

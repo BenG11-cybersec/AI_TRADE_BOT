@@ -1,22 +1,22 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║         BACKTEST v2.0 — advanced_bot_v3 + AI Layer              ║
+║         BACKTEST v2.0 — advanced_bot_v3 + AI Layer               ║
 ║         3 éves historikus teszt, 10 részvény, $1000/db           ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  MIT ÚJ A v2.0-BAN?                                             ║
+║  MIT ÚJ A v2.0-BAN?                                              ║
 ║                                                                  ║
-║  1. Az advanced_bot_v3 ÖSSZES stratégiáját teszteli (S1–S9)     ║
+║  1. Az advanced_bot_v3 ÖSSZES stratégiáját teszteli (S1–S9)      ║
 ║  2. Az AI layer is fut: minden trade-nél bullish%-ot számol      ║
-║  3. AI-SZŰRT mód: csak akkor vesz, ha AI bullish% >= küszöb     ║
+║  3. AI-SZŰRT mód: csak akkor vesz, ha AI bullish% >= küszöb      ║
 ║  4. Párhuzamos összehasonlítás:                                  ║
-║       • Csak Quant stratégia (v3, AI nélkül)                    ║
-║       • Quant + AI szűrő (csak magas AI konfidenciánál vesz)    ║
+║       • Csak Quant stratégia (v3, AI nélkül)                     ║
+║       • Quant + AI szűrő (csak magas AI konfidenciánál vesz)     ║
 ║       • Buy & Hold                                               ║
-║  5. AI modell önfejlesztése: minden lezárt trade visszakerül    ║
-║     a score-history táblába → a modell tanul a backtestből      ║
+║  5. AI modell önfejlesztése: minden lezárt trade visszakerül     ║
+║     a score-history táblába → a modell tanul a backtestből       ║
 ║                                                                  ║
 ║  HOW TO RUN:                                                     ║
-║    1. python ai_layer.py --train   (első alkalommal)            ║
+║    1. python ai_layer.py --train   (első alkalommal)             ║
 ║    2. python backtest_v2.py                                      ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
