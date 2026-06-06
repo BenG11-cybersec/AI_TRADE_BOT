@@ -74,10 +74,10 @@ except ImportError:
 # ═══════════════════════════════════════════════════════
 #  KONFIGURÁCIÓ
 # ═══════════════════════════════════════════════════════
-load_dotnev()
+load_dotenv()
 
-DISCORD_WEBHOOK_BULL = os.getenv(bull_url, "BACKUP")
-DISCORD_WEBHOOK_BEAR = os.getenv(bear_url, "BACKUP")
+DISCORD_WEBHOOK_BULL = os.getenv("bull_url", "BACKUP")
+DISCORD_WEBHOOK_BEAR = os.getenv("bear_url", "BACKUP")
 
 # Ezeket a részvényeket elemzi a program egymástól függetlenül
 WATCHLIST = [ 
@@ -122,7 +122,7 @@ RS_LOOKBACK_DAYS        = 63   # S7: relatív erő visszatekintési ablak (3 hó
 # ═══════════════════════════════════════════════════════
 
 class DiscordNotifier:
-    def __init__(self, webhook_url_bull: str):
+    def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
     def send_alert(self, message: str):
@@ -147,6 +147,11 @@ class MarketDataFetcher:
         try:
             stock = yf.Ticker(ticker)
             data  = stock.history(period="2y")
+            
+            # ── IDŐZÓNA JAVÍTÁS (Globális tisztítás) ──
+            if data.index.tz is not None:
+                data.index = data.index.tz_localize(None)
+                
             info  = stock.info
             return data, info
         except Exception as e:
@@ -156,7 +161,13 @@ class MarketDataFetcher:
     def get_benchmark(self) -> pd.DataFrame:
         try:
             spy = yf.Ticker("SPY")
-            return spy.history(period="2y")
+            data = spy.history(period="2y")
+            
+            # ── IDŐZÓNA JAVÍTÁS (Globális tisztítás) ──
+            if data.index.tz is not None:
+                data.index = data.index.tz_localize(None)
+                
+            return data
         except:
             return pd.DataFrame()
 
@@ -911,10 +922,10 @@ class ScannerBot:
                            "direction_label":   ai_report["direction_label"],
                            "position_size_pct": ai_report["position_size_pct"],
                        }
-                 if result['Direction'] == "ELADÁSI":
-                     self.notifier_bear.send_alert(discord_msg)
-                 else:
-                     self.notifier_bull.send_alert(discord_msg)
+                    if result['direction'] == "ELADÁSI" :
+                       self.notifier_bear.send_alert(discord_msg)
+                    else:
+                       self.notifier_bull.send_alert(discord_msg)
             else:
                 print("  ↔️  Nincs elég erős jelzés.")
 
